@@ -1,21 +1,22 @@
 #pragma once
 
 #include <iostream>
-#include <queue>
+#include <functional>
 #include <vector>
 #include <any>
-#include "task.cc"
+#include <string.h>
+#include "task.h"
+
+struct CpuTaskInput {
+    std::vector<std::any> args;
+    std::function<void*(std::vector<std::any>)> func;
+};
 
 class CpuTask : public Task {
 
 public:
-    int id;
-    std::function<std::any(std::vector<std::any>)> method;
+    CpuTask(bool forward_result = false);
 
-    CpuTask(
-      std::function<std::any(std::vector<std::any>)> method = [](std::vector<std::any> args) -> std::any { return std::any(); },
-      std::vector<std::any> args = {}, 
-      bool pass_result = false, 
-      std::vector<Task*> next_tasks = {});
+    void* process() override;
     
 };

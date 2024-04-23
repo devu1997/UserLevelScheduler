@@ -1,9 +1,8 @@
 #include "cputask.h"
 
-CpuTask::CpuTask(
-  std::function<std::any(std::vector<std::any>)> method,
-  std::vector<std::any> args, 
-  bool pass_result, 
-  std::vector<Task*> next_tasks) : Task(args, pass_result, next_tasks) {
-    this->method = method;
-  }
+CpuTask::CpuTask(bool forward_result) : Task(forward_result) {}
+
+void* CpuTask::process() {
+  CpuTaskInput* cpu_input = static_cast<CpuTaskInput*>(input);
+  return cpu_input->func(cpu_input->args);
+}
