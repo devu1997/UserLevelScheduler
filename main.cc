@@ -10,10 +10,11 @@ void start(Scheduler &scheduler, FileScheduler &file_scheduler) {
     // stop_flag = false;
     int max_threads = std::thread::hardware_concurrency();
     std::vector<std::thread> threads;
-    for (int i = 0; i < max_threads - 1; ++i) {
-        threads.emplace_back([&scheduler] { scheduler.process_interactive_tasks(); });
+    for (int i = 0; i < max_threads - 2; ++i) {
+        threads.emplace_back([&scheduler] { scheduler.start(); });
     }
-    threads.emplace_back([&scheduler, &file_scheduler] { file_scheduler.process(&scheduler); });
+    threads.emplace_back([&scheduler, &file_scheduler] { file_scheduler.start_consumer(); });
+    threads.emplace_back([&scheduler, &file_scheduler] { file_scheduler.start_producer(); });
     for (std::thread& thread : threads) {
         thread.join();
     }
@@ -22,6 +23,8 @@ void start(Scheduler &scheduler, FileScheduler &file_scheduler) {
 int main() {
     Scheduler scheduler;
     FileScheduler file_scheduler;
+    scheduler.setFileScheduler(&file_scheduler);
+    file_scheduler.setScheduler(&scheduler);
 
     std::vector<std::any> args1 = { std::string("Running task 1\n") };
     CpuTask *task1 = new CpuTask();

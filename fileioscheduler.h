@@ -3,6 +3,8 @@
 #include <iostream>
 #include <fcntl.h>
 #include <string.h>
+#include <mutex>
+#include <deque>
 #include <unordered_map>
 #include <liburing.h>
 #include "filetasks.h"
@@ -20,17 +22,21 @@ struct FileInfo {
 };
 
 class FileScheduler {
-
 private:
+    Scheduler *scheduler;
     struct io_uring ring;
+    std::mutex mtx;
+    std::deque<FileReadTask*> queued_requests;
     std::unordered_map<int, FileReadTask*> in_process_requests;
 
 public:
     FileScheduler();
     ~FileScheduler();
 
-    void submit_for_read(FileReadTask *task);
-    void process(Scheduler *scheduler);
+    void submit(FileReadTask *task);
+    void start_producer();
+    void start_consumer();
+    void setScheduler(Scheduler *scheduler);
 
 private:
     off_t get_file_size(int fd);

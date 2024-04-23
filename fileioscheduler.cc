@@ -15,45 +15,65 @@ FileScheduler::~FileScheduler() {
     io_uring_queue_exit(&ring);
 }
 
-void FileScheduler::submit_for_read(FileReadTask *task) {
-    FileReadTaskInput* fr_input = static_cast<FileReadTaskInput*>(task->input);
-    int file_fd = fr_input->file_fd;
-    int task_id = task->id;
-    off_t file_size = get_file_size(file_fd);
-    off_t bytes_remaining = file_size;
-    off_t offset = 0;
-    int current_block = 0;
-    int blocks = (int) file_size / BLOCK_SZ;
-    if (file_size % BLOCK_SZ) blocks++;
-    FileInfo *fi = (FileInfo*) malloc(sizeof(*fi) + (sizeof(struct iovec) * blocks));
-    char *buff = (char*)malloc(file_size);
-    if (!buff) {
-        throw std::runtime_error("Error: Unable to allocate memory for file read");
-    }
-    while (bytes_remaining) {
-        off_t bytes_to_read = bytes_remaining;
-        if (bytes_to_read > BLOCK_SZ) {
-            bytes_to_read = BLOCK_SZ;
-        }
-        fi->iovecs[current_block].iov_len = bytes_to_read;
-        void *buf;
-        if (posix_memalign(&buf, BLOCK_SZ, BLOCK_SZ)) {
-            throw std::runtime_error("Error: Posix memalign failed");
-        }
-        fi->iovecs[current_block].iov_base = buf;
-        current_block++;
-        bytes_remaining -= bytes_to_read;
-    }
-    fi->file_size = file_size;
-    fi->task_id = task_id;
-    in_process_requests[task_id] = task;
-    struct io_uring_sqe *sqe = io_uring_get_sqe(&ring);
-    io_uring_prep_readv(sqe, file_fd, fi->iovecs, blocks, 0);
-    io_uring_sqe_set_data(sqe, fi);
-    io_uring_submit(&ring);
+
+void FileScheduler::setScheduler(Scheduler *scheduler) {
+    this->scheduler = scheduler;
 }
 
-void FileScheduler::process(Scheduler *scheduler) {
+void FileScheduler::submit(FileReadTask *task) {
+    std::lock_guard<std::mutex> lock(mtx);
+    queued_requests.push_back(task);
+}
+
+void FileScheduler::start_producer() {
+    while (true) {
+        if (!queued_requests.empty()) {
+            FileReadTask *task;
+            {
+                std::lock_guard<std::mutex> lock(mtx);
+                task = queued_requests.front();
+                queued_requests.pop_front();
+            }
+            FileReadTaskInput* fr_input = static_cast<FileReadTaskInput*>(task->input);
+            int file_fd = fr_input->file_fd;
+            int task_id = task->id;
+            off_t file_size = get_file_size(file_fd);
+            off_t bytes_remaining = file_size;
+            off_t offset = 0;
+            int current_block = 0;
+            int blocks = (int) file_size / BLOCK_SZ;
+            if (file_size % BLOCK_SZ) blocks++;
+            FileInfo *fi = (FileInfo*) malloc(sizeof(*fi) + (sizeof(struct iovec) * blocks));
+            char *buff = (char*)malloc(file_size);
+            if (!buff) {
+                throw std::runtime_error("Error: Unable to allocate memory for file read");
+            }
+            while (bytes_remaining) {
+                off_t bytes_to_read = bytes_remaining;
+                if (bytes_to_read > BLOCK_SZ) {
+                    bytes_to_read = BLOCK_SZ;
+                }
+                fi->iovecs[current_block].iov_len = bytes_to_read;
+                void *buf;
+                if (posix_memalign(&buf, BLOCK_SZ, BLOCK_SZ)) {
+                    throw std::runtime_error("Error: Posix memalign failed");
+                }
+                fi->iovecs[current_block].iov_base = buf;
+                current_block++;
+                bytes_remaining -= bytes_to_read;
+            }
+            fi->file_size = file_size;
+            fi->task_id = task_id;
+            in_process_requests[task_id] = task;
+            struct io_uring_sqe *sqe = io_uring_get_sqe(&ring);
+            io_uring_prep_readv(sqe, file_fd, fi->iovecs, blocks, 0);
+            io_uring_sqe_set_data(sqe, fi);
+            io_uring_submit(&ring);
+        }
+    }
+}
+
+void FileScheduler::start_consumer() {
     while (true) {
         struct io_uring_cqe *cqe;
         unsigned head;

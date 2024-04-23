@@ -4,9 +4,10 @@
 #include <stdexcept>
 #include "filetasks.h"
 
-FileOpenTask::FileOpenTask(bool forward_result) : Task(forward_result) {}
+FileOpenTask::FileOpenTask(bool forward_result) : Task(forward_result, TaskExecutionMode::SYNC) {}
 
 void* FileOpenTask::process() {
+    std::cout<<"OPENING"<<std::endl;
     FileOpenTaskInput* fo_input = static_cast<FileOpenTaskInput*>(input);
     int file_fd = open(fo_input->file_path, fo_input->mode);
     if (file_fd < 0) {
@@ -16,25 +17,23 @@ void* FileOpenTask::process() {
     return fo_output;
 }
 
-FileReadTask::FileReadTask(bool forward_result) : Task(forward_result) {}
+FileReadTask::FileReadTask(bool forward_result) : Task(forward_result, TaskExecutionMode::ASYNC_FILE) {}
 
 void* FileReadTask::process() {
-    // ioscheduler.submit_for_read(this);
-    // Do not process the next tasks
-    return process_completion("wohoooo");
+    return nullptr;
 }
 
 FileReadTaskOutput* FileReadTask::process_completion(std::string data) {
+    std::cout<<"READ COMPLETE "<<data<<std::endl;
     FileReadTaskInput* fr_input = static_cast<FileReadTaskInput*>(input);
     FileReadTaskOutput *fr_output = new FileReadTaskOutput({fr_input->file_fd, data});
-    std::cout<<"Reched processing 2.3";
     return fr_output;
 }
 
-FileCloseTask::FileCloseTask(bool forward_result) : Task(forward_result) {}
+FileCloseTask::FileCloseTask(bool forward_result) : Task(forward_result, TaskExecutionMode::SYNC) {}
 
 void* FileCloseTask::process() {
-    std::cout<<"CLOSING 3";
+    std::cout<<"CLOSING"<<std::endl;
     FileCloseTaskInput* fc_input = static_cast<FileCloseTaskInput*>(input);
     int ret = close(fc_input->file_fd);
     if (ret == -1) {
