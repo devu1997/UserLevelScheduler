@@ -1,28 +1,31 @@
 #pragma once
 
-#include <queue>
+#include <deque>
+#include <unordered_map>
 #include <mutex>
 #include <atomic>
 #include "task.h"
-#include "fileioscheduler.h"
+#include "filescheduler.h"
 
 
 class Scheduler {
 private:
+    int id;
     FileScheduler *file_scheduler;
-    std::queue<Task*> cpu_task_queue;
-    std::mutex cpu_mtx;
+    std::deque<Task*> batch_task_queue;
+    std::deque<Task*> async_response_task_queue;
+    std::mutex mtx;
     std::atomic<bool> stop_flag;
-    std::mutex io_mtx;
     
 public:
-    Scheduler();
+    Scheduler(int id);
     ~Scheduler();
 
     void submit(Task* task);
     void start();
     void stop();
     void setFileScheduler(FileScheduler *file_scheduler);
+    void submit_async_response_task(Task* task);
 
 private:
     void process_interactive_tasks();

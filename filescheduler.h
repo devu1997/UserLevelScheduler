@@ -4,6 +4,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <mutex>
+#include <condition_variable>
 #include <deque>
 #include <unordered_map>
 #include <liburing.h>
@@ -23,20 +24,25 @@ struct FileInfo {
 
 class FileScheduler {
 private:
-    Scheduler *scheduler;
+    bool stop_flag;
+    std::vector<Scheduler*> *schedulers;
     struct io_uring ring;
-    std::mutex mtx;
-    std::deque<FileReadTask*> queued_requests;
-    std::unordered_map<int, FileReadTask*> in_process_requests;
+    std::mutex producer_mtx;
+    std::mutex consumer_mtx;
+    std::condition_variable producer_cv;
+    std::condition_variable consumer_cv;
+    std::deque<FileReadCompleteTask*> queued_requests;
+    std::unordered_map<int, FileReadCompleteTask*> in_process_requests;
 
 public:
     FileScheduler();
     ~FileScheduler();
 
-    void submit(FileReadTask *task);
+    void submit(FileReadCompleteTask *task);
     void start_producer();
     void start_consumer();
-    void setScheduler(Scheduler *scheduler);
+    void stop();
+    void setSchedulers(std::vector<Scheduler*> *schedulers);
 
 private:
     off_t get_file_size(int fd);

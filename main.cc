@@ -3,28 +3,13 @@
 #include "cputask.cc"
 #include "filetasks.cc"
 #include "scheduler.cc"
-#include "fileioscheduler.cc"
+#include "filescheduler.cc"
+#include "coordinator.cc"
 #include <fcntl.h>
 
-void start(Scheduler &scheduler, FileScheduler &file_scheduler) {
-    // stop_flag = false;
-    int max_threads = std::thread::hardware_concurrency();
-    std::vector<std::thread> threads;
-    for (int i = 0; i < max_threads - 2; ++i) {
-        threads.emplace_back([&scheduler] { scheduler.start(); });
-    }
-    threads.emplace_back([&scheduler, &file_scheduler] { file_scheduler.start_consumer(); });
-    threads.emplace_back([&scheduler, &file_scheduler] { file_scheduler.start_producer(); });
-    for (std::thread& thread : threads) {
-        thread.join();
-    }
-}
 
 int main() {
-    Scheduler scheduler;
-    FileScheduler file_scheduler;
-    scheduler.setFileScheduler(&file_scheduler);
-    file_scheduler.setScheduler(&scheduler);
+    Coordinator coordinator;
 
     std::vector<std::any> args1 = { std::string("Running task 1\n") };
     CpuTask *task1 = new CpuTask();
@@ -72,11 +57,11 @@ int main() {
     fr->setNextTasks(next_tasks2);
 
     
-    scheduler.submit(task1);
-    scheduler.submit(task3);
-    scheduler.submit(fo);
+    coordinator.submit(fo);
+    coordinator.submit(task1);
+    coordinator.submit(task3);
 
-    start(scheduler, file_scheduler);
+    coordinator.start();
 
     return 0;
 }
