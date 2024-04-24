@@ -1,8 +1,7 @@
 #include "cputask.h"
 
-CpuTask::CpuTask(bool forward_result) : Task(forward_result, TaskExecutionMode::SYNC) {}
+CpuTask::CpuTask(std::function<void*()> func, bool forward_result) : Task(func, forward_result, TaskExecutionMode::SYNC) {}
 
 void* CpuTask::process() {
-  CpuTaskInput* cpu_input = static_cast<CpuTaskInput*>(input);
-  return cpu_input->func();
+  return func();
 }

@@ -2,9 +2,11 @@
 
 #include <iostream>
 #include <chrono>
+#include <functional>
 #include <string.h>
 #include "task.h"
 
+/* File close */
 
 struct FileCloseTaskInput {
     int file_fd;
@@ -12,10 +14,13 @@ struct FileCloseTaskInput {
 
 class FileCloseTask : public Task {
 public:
-    FileCloseTask(bool forward_result = false);
+    FileCloseTask(std::function<void*()> func, bool forward_result = false);
+    FileCloseTask(bool forward_result = true);
 
     void* process() override;
 };
+
+/* File read */
 
 struct FileReadTaskInput {
     int file_fd;
@@ -30,6 +35,7 @@ struct FileReadTaskOutput : public FileCloseTaskInput {
 
 class FileReadTask : public Task {
 public:
+    FileReadTask(std::function<void*()> func, bool forward_result = true);
     FileReadTask(bool forward_result = true);
 
     void* process() override;
@@ -46,11 +52,13 @@ class FileReadCompleteTask : public Task {
 public:
     std::chrono::_V2::steady_clock::time_point start_time;
 
-    FileReadCompleteTask(bool forward_result = true);
+    FileReadCompleteTask(std::function<void*()> func, bool forward_result = true);
 
     void* process() override;
     void setStartTime();
 };
+
+/* File open */
 
 struct FileOpenTaskInput {
     const char* file_path;
@@ -63,6 +71,7 @@ struct FileOpenTaskOutput : public FileReadTaskInput {
 
 class FileOpenTask : public Task {
 public:
+    FileOpenTask(std::function<void*()> func, bool forward_result = true);
     FileOpenTask(bool forward_result = true);
 
     void* process() override;

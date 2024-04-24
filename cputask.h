@@ -7,14 +7,10 @@
 #include <string.h>
 #include "task.h"
 
-struct CpuTaskInput {
-    std::function<void*()> func;
-};
-
 class CpuTask : public Task {
 
 public:
-    CpuTask(bool forward_result = false);
+    CpuTask(std::function<void*()> func, bool forward_result = false);
 
     void* process() override;
     

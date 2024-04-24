@@ -26,6 +26,10 @@ off_t get_file_size(int fd) {
     return -1;
 }
 
+/* File open */
+
+FileOpenTask::FileOpenTask(std::function<void*()> func, bool forward_result) : Task(func, forward_result, TaskExecutionMode::SYNC) {}
+
 FileOpenTask::FileOpenTask(bool forward_result) : Task(forward_result, TaskExecutionMode::SYNC) {}
 
 void* FileOpenTask::process() {
@@ -37,6 +41,10 @@ void* FileOpenTask::process() {
     FileOpenTaskOutput *fo_output = new FileOpenTaskOutput({file_fd});
     return fo_output;
 }
+
+/* File read */
+
+FileReadTask::FileReadTask(std::function<void*()> func, bool forward_result) : Task(func, forward_result, TaskExecutionMode::SYNC) {}
 
 FileReadTask::FileReadTask(bool forward_result) : Task(forward_result, TaskExecutionMode::SYNC) {}
 
@@ -71,14 +79,14 @@ void* FileReadTask::process() {
     frc_input->file_fd = file_fd;
     frc_input->file_size = file_size;
     frc_input->blocks = blocks;
-    FileReadCompleteTask* file_complete_task = new FileReadCompleteTask(this->forward_result);
+    FileReadCompleteTask* file_complete_task = new FileReadCompleteTask(this->func, this->forward_result);
     file_complete_task->setNextTasks(this->next_tasks);
     this->next_tasks = {file_complete_task};
     this->forward_result = true;
     return frc_input;
 }
 
-FileReadCompleteTask::FileReadCompleteTask(bool forward_result) : Task(forward_result, TaskExecutionMode::ASYNC_FILE) {}
+FileReadCompleteTask::FileReadCompleteTask(std::function<void*()> func, bool forward_result) : Task(func, forward_result, TaskExecutionMode::ASYNC_FILE) {}
 
 void* FileReadCompleteTask::process() {
     FileReadCompleteTaskInput* frc_input = static_cast<FileReadCompleteTaskInput*>(input);
@@ -95,6 +103,10 @@ void* FileReadCompleteTask::process() {
 void FileReadCompleteTask::setStartTime() {
     this->start_time = std::chrono::steady_clock::now();
 }
+
+/* File close */
+
+FileCloseTask::FileCloseTask(std::function<void*()> func, bool forward_result) : Task(func, forward_result, TaskExecutionMode::SYNC) {}
 
 FileCloseTask::FileCloseTask(bool forward_result) : Task(forward_result, TaskExecutionMode::SYNC) {}
 

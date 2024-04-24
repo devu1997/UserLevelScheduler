@@ -14,32 +14,26 @@
 int main() {
     Coordinator coordinator;
 
-    CpuTask *task1 = new CpuTask();
-    task1->setInput(
-      new CpuTaskInput({
+    CpuTask *task1 = new CpuTask(
         []() -> void* { 
           std::cout << "Running task 1\n";
           return nullptr;
         }
-      }));
+      );
 
-    CpuTask *task2 = new CpuTask();
-    task2->setInput(
-      new CpuTaskInput({
+    CpuTask *task2 = new CpuTask(
         []() -> void* { 
           std::cout << "Running task 2\n";
           return nullptr;
         }
-      }));
+      );
 
-    CpuTask *task3 = new CpuTask();
-    task3->setInput(
-      new CpuTaskInput({
+    CpuTask *task3 = new CpuTask(
         []() -> void* { 
           std::cout << "Running task 3\n";
           return nullptr;
         }
-      }));
+      );
     std::vector<Task*> next_tasks = {task2};
     task3->setNextTasks(next_tasks);
 
@@ -48,20 +42,18 @@ int main() {
     FileReadTask *fr = new FileReadTask();
     FileCloseTask *fc = new FileCloseTask(false);
 
-    CpuTask *task4 = new CpuTask();
-    task4->setInput(
-      new CpuTaskInput({
-        []() -> void* { 
-          std::cout << "Running task 4\n";
-          long long result = 0;
-          for (int i = 0; i < 10000000; ++i) {
-              result += i * i; // Perform some arithmetic operations
-          }
-          std::this_thread::sleep_for(std::chrono::seconds(10));
-          std::cout << "Result of CPU-intensive task: " << result << std::endl;
-          return nullptr;
+    CpuTask *task4 = new CpuTask(
+      []() -> void* { 
+        std::cout << "Running task 4\n";
+        long long result = 0;
+        for (int i = 0; i < 10000000; ++i) {
+            result += i * i; // Perform some arithmetic operations
         }
-      }));
+        std::this_thread::sleep_for(std::chrono::seconds(10));
+        std::cout << "Result of CPU-intensive task: " << result << std::endl;
+        return nullptr;
+      }
+    );
     std::vector<Task*> next_tasks0 = {fo};
     std::vector<Task*> next_tasks1 = {fr};
     std::vector<Task*> next_tasks2 = {fc};

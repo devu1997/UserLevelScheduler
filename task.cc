@@ -6,8 +6,16 @@
 
 int Task::last_task_id = 0;
 
+Task::Task(std::function<void*()> func, bool forward_result, TaskExecutionMode exec_mode) {
+    this->id = Task::generate_task_id();
+    this->func = func;
+    this->forward_result = forward_result;
+    this->exec_mode = exec_mode;
+}
+
 Task::Task(bool forward_result, TaskExecutionMode exec_mode) {
     this->id = Task::generate_task_id();
+    this->func = []() { return nullptr; };
     this->forward_result = forward_result;
     this->exec_mode = exec_mode;
 }

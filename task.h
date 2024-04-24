@@ -4,7 +4,9 @@
 #include <queue>
 #include <vector>
 #include <any>
+#include <functional>
 #include "history.h"
+
 
 enum class TaskExecutionMode {
     SYNC,
@@ -18,11 +20,13 @@ private:
 public:
     int id;
     void* input;
+    std::function<void*()> func;
     bool forward_result;
     std::vector<Task*> next_tasks;
     TaskExecutionMode exec_mode;
     History history;
 
+    Task(std::function<void*()> func, bool forward_result = false, TaskExecutionMode exec_mode = TaskExecutionMode::SYNC);
     Task(bool forward_result = false, TaskExecutionMode exec_mode = TaskExecutionMode::SYNC);
 
     virtual void* process() = 0;

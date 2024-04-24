@@ -25,7 +25,6 @@ public:
     void start();
     void stop();
     void setFileScheduler(FileScheduler *file_scheduler);
-    void submit_async_response_task(Task* task);
 
 private:
     void process_interactive_tasks();
