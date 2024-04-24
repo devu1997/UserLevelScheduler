@@ -8,8 +8,7 @@
 #include "task.h"
 
 struct CpuTaskInput {
-    std::vector<std::any> args;
-    std::function<void*(std::vector<std::any>)> func;
+    std::function<void*()> func;
 };
 
 class CpuTask : public Task {

@@ -44,7 +44,6 @@ void Scheduler::process_interactive_tasks() {
                     submit(next_task);
                 }
             }
-            delete task;
         } catch (const std::runtime_error& e) {
             std::cout << "Caught runtime error: " << e.what() << std::endl;
         }

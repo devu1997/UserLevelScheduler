@@ -5,8 +5,8 @@
 #define QUEUE_DEPTH 32
 
 FileScheduler::FileScheduler() {
-    int s = io_uring_queue_init(QUEUE_DEPTH, &ring, 0);
-    if (s < 0) {
+    int ret = io_uring_queue_init(QUEUE_DEPTH, &ring, 0);
+    if (ret < 0) {
         throw std::runtime_error("Error: Unable to initialize IO uring");
     }
 }

@@ -11,35 +11,29 @@
 int main() {
     Coordinator coordinator;
 
-    std::vector<std::any> args1 = { std::string("Running task 1\n") };
     CpuTask *task1 = new CpuTask();
     task1->setInput(
       new CpuTaskInput({
-        args1,
-        [](std::vector<std::any> args) -> void* { 
-          std::cout << std::any_cast<std::string>(args[0]);
+        []() -> void* { 
+          std::cout << "Running task 1\n";
           return nullptr;
         }
       }));
 
-    std::vector<std::any> args2 = { std::string("Running task 2\n") };
     CpuTask *task2 = new CpuTask();
     task2->setInput(
       new CpuTaskInput({
-        args2,
-        [](std::vector<std::any> args) -> void* { 
-          std::cout << std::any_cast<std::string>(args[0]);
+        []() -> void* { 
+          std::cout << "Running task 2\n";
           return nullptr;
         }
       }));
 
-    std::vector<std::any> args3 = { std::string("Running task 3\n") };
     CpuTask *task3 = new CpuTask();
     task3->setInput(
       new CpuTaskInput({
-        args3,
-        [](std::vector<std::any> args) -> void* { 
-          std::cout << std::any_cast<std::string>(args[0]);
+        []() -> void* { 
+          std::cout << "Running task 3\n";
           return nullptr;
         }
       }));
@@ -57,7 +51,11 @@ int main() {
     fr->setNextTasks(next_tasks2);
 
     
+    coordinator.submit(task1);
+    coordinator.submit(task1);
     coordinator.submit(fo);
+    coordinator.submit(task3);
+    coordinator.submit(task3);
     coordinator.submit(task1);
     coordinator.submit(task3);
 
