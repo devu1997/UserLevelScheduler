@@ -12,7 +12,7 @@ enum class EventType {
 
 struct Event {
     EventType type;
-    std::chrono::nanoseconds duration;
+    std::chrono::milliseconds duration;
 };
 
 class History {
@@ -20,8 +20,8 @@ private:
     std::deque<Event> events{};
 
 public:
-    std::chrono::nanoseconds run_time = std::chrono::nanoseconds(0);
-    std::chrono::nanoseconds sleep_time = std::chrono::nanoseconds(0);
+    std::chrono::milliseconds run_time = std::chrono::milliseconds(0);
+    std::chrono::milliseconds sleep_time = std::chrono::milliseconds(0);
   
     History();
     ~History();

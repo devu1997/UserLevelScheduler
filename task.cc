@@ -1,9 +1,6 @@
 #include "task.h"
 
 
-#define SCALING_FACTOR 50
-#define INTERACTIVITY_THRESHOLD 30
-
 int Task::last_task_id = 0;
 
 Task::Task(std::function<void*()> func, bool forward_result, TaskExecutionMode exec_mode) {
@@ -24,7 +21,7 @@ void Task::setInput(void* input) {
     this->input = input;
 }
 
-void Task::setNextTasks(std::vector<Task*> &next_tasks) {
+void Task::setNextTasks(std::vector<Task*> next_tasks) {
     this->next_tasks = next_tasks;
 }
 
@@ -33,7 +30,7 @@ void Task::setHistory(History history) {
 }
 
 int Task::getInteractivityScore() {
-    if (history.sleep_time == std::chrono::nanoseconds::zero() && history.run_time == std::chrono::nanoseconds::zero()) {
+    if (history.sleep_time == std::chrono::milliseconds::zero() && history.run_time == std::chrono::milliseconds::zero()) {
         return SCALING_FACTOR; // Initially set the task as batch so that non-interactive tasks will not starve interactive tasks
     }
     int score = 0;

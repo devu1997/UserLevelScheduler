@@ -8,6 +8,9 @@
 #include "history.h"
 
 
+#define SCALING_FACTOR 50
+#define INTERACTIVITY_THRESHOLD 30
+
 enum class TaskExecutionMode {
     SYNC,
     ASYNC_FILE
@@ -31,7 +34,7 @@ public:
 
     virtual void* process() = 0;
     void setInput(void* input);
-    void setNextTasks(std::vector<Task*> &next_tasks);
+    void setNextTasks(std::vector<Task*> next_tasks);
     void setHistory(History history);
     int getInteractivityScore();
 

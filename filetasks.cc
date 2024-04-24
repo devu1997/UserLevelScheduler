@@ -34,6 +34,7 @@ FileOpenTask::FileOpenTask(bool forward_result) : Task(forward_result, TaskExecu
 
 void* FileOpenTask::process() {
     FileOpenTaskInput* fo_input = static_cast<FileOpenTaskInput*>(input);
+    std::cout<<"Open file"<<std::endl;
     int file_fd = open(fo_input->file_path, fo_input->mode);
     if (file_fd < 0) {
         throw std::runtime_error("Error: Unable to open file");
@@ -57,7 +58,7 @@ void* FileReadTask::process() {
     int current_block = 0;
     int blocks = (int) file_size / BLOCK_SZ;
     if (file_size % BLOCK_SZ) blocks++;
-    FileReadCompleteTaskInput *frc_input = (FileReadCompleteTaskInput*) malloc(sizeof(*frc_input) + (sizeof(struct iovec) * blocks));
+    AsyncFileReadTaskInput *frc_input = (AsyncFileReadTaskInput*) malloc(sizeof(*frc_input) + (sizeof(struct iovec) * blocks));
     char *buff = (char*)malloc(file_size);
     if (!buff) {
         throw std::runtime_error("Error: Unable to allocate memory for file read");
@@ -79,17 +80,18 @@ void* FileReadTask::process() {
     frc_input->file_fd = file_fd;
     frc_input->file_size = file_size;
     frc_input->blocks = blocks;
-    FileReadCompleteTask* file_complete_task = new FileReadCompleteTask(this->func, this->forward_result);
-    file_complete_task->setNextTasks(this->next_tasks);
-    this->next_tasks = {file_complete_task};
+    AsyncFileReadTask* async_task = new AsyncFileReadTask(this->func, this->forward_result);
+    async_task->setNextTasks(this->next_tasks);
+    this->next_tasks = {async_task};
     this->forward_result = true;
+    std::cout<<"Start read file of size: "<<file_size<<" block: "<<blocks<<std::endl;
     return frc_input;
 }
 
-FileReadCompleteTask::FileReadCompleteTask(std::function<void*()> func, bool forward_result) : Task(func, forward_result, TaskExecutionMode::ASYNC_FILE) {}
+AsyncFileReadTask::AsyncFileReadTask(std::function<void*()> func, bool forward_result) : Task(func, forward_result, TaskExecutionMode::ASYNC_FILE) {}
 
-void* FileReadCompleteTask::process() {
-    FileReadCompleteTaskInput* frc_input = static_cast<FileReadCompleteTaskInput*>(input);
+void* AsyncFileReadTask::process() {
+    AsyncFileReadTaskInput* frc_input = static_cast<AsyncFileReadTaskInput*>(input);
     int blocks = (int) frc_input->file_size / BLOCK_SZ;
     if (frc_input->file_size % BLOCK_SZ) blocks++;
     std::string data = "";
@@ -97,10 +99,11 @@ void* FileReadCompleteTask::process() {
         data += std::string((char*)frc_input->iovecs[i].iov_base, frc_input->iovecs[i].iov_len);
     // std::cout<<data<<std::endl;
     FileReadTaskOutput *fr_output = new FileReadTaskOutput({frc_input->file_fd, data});
+    std::cout<<"Read file "<<this->next_tasks.size()<<std::endl;
     return fr_output;
 }
 
-void FileReadCompleteTask::setStartTime() {
+void AsyncFileReadTask::setStartTime() {
     this->start_time = std::chrono::steady_clock::now();
 }
 
@@ -116,5 +119,6 @@ void* FileCloseTask::process() {
     if (ret == -1) {
         throw std::runtime_error("Error: Unable to close file");
     }
+    std::cout<<"Closed file"<<std::endl;
     return nullptr;
 }

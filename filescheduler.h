@@ -10,12 +10,13 @@ class FileScheduler {
 private:
     Scheduler* scheduler;
     struct io_uring ring;
+    int pending_requests = 0;
 
 public:
     FileScheduler();
     ~FileScheduler();
 
-    void submit(FileReadCompleteTask *task);
+    void submit(AsyncFileReadTask *task);
     void process_completed();
     void setScheduler(Scheduler*schedulers);
 };

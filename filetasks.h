@@ -41,18 +41,18 @@ public:
     void* process() override;
 };
 
-struct FileReadCompleteTaskInput {
+struct AsyncFileReadTaskInput {
     int file_fd;
     off_t file_size;
     int blocks;
     struct iovec iovecs[];
 };
 
-class FileReadCompleteTask : public Task {
+class AsyncFileReadTask : public Task {
 public:
     std::chrono::_V2::steady_clock::time_point start_time;
 
-    FileReadCompleteTask(std::function<void*()> func, bool forward_result = true);
+    AsyncFileReadTask(std::function<void*()> func, bool forward_result = true);
 
     void* process() override;
     void setStartTime();

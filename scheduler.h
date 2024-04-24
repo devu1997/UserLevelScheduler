@@ -2,19 +2,20 @@
 
 #include <deque>
 #include <unordered_map>
-#include <mutex>
 #include <atomic>
 #include "task.h"
+#include "priority_queue.h"
 #include "filescheduler.h"
 
+
+#define MIN_NICENESS -20
+#define MAX_NICENESS 20
 
 class Scheduler {
 private:
     int id;
     FileScheduler *file_scheduler;
-    std::deque<Task*> batch_task_queue;
-    std::deque<Task*> async_response_task_queue;
-    std::mutex mtx;
+    PriorityQueue batch_task_queue;
     std::atomic<bool> stop_flag;
     
 public:

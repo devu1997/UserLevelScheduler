@@ -1,6 +1,6 @@
 #include "history.h"
 
-#define HISTORY_THRESHOLD std::chrono::seconds(5)
+#define HISTORY_THRESHOLD std::chrono::milliseconds(5000)
 
 History::History() {}
 
@@ -15,21 +15,22 @@ void History::addEvent(Event event) {
     }
     while (!events.empty() && run_time + sleep_time > HISTORY_THRESHOLD) {
         Event lastEvent = events.front();
+        events.pop_front();
         if (run_time + sleep_time - lastEvent.duration < HISTORY_THRESHOLD) {
-            auto extra_duration = lastEvent.duration - (run_time + sleep_time - HISTORY_THRESHOLD);
+            std::chrono::milliseconds extra_duration = run_time + sleep_time - HISTORY_THRESHOLD;
             lastEvent.duration -= extra_duration;
             if (lastEvent.type == EventType::CPU) {
                 run_time -= extra_duration;
             } else {
                 sleep_time -= extra_duration;
             }
+            events.push_front(lastEvent);
         } else {
             if (lastEvent.type == EventType::CPU) {
                 run_time -= lastEvent.duration;
             } else {
                 sleep_time -= lastEvent.duration;
             }
-            events.pop_front();
         }
     }
 }
