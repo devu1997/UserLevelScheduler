@@ -21,6 +21,7 @@ void FileScheduler::setScheduler(Scheduler* scheduler) {
 
 void FileScheduler::submit(FileReadCompleteTask *task) {
     FileReadCompleteTaskInput* fr_input = static_cast<FileReadCompleteTaskInput*>(task->input);
+    task->setStartTime();
     struct io_uring_sqe *sqe = io_uring_get_sqe(&ring);
     io_uring_prep_readv(sqe, fr_input->file_fd, fr_input->iovecs, fr_input->blocks, 0);
     io_uring_sqe_set_data(sqe, task);
@@ -35,11 +36,16 @@ void FileScheduler::process_completed() {
         if (cqe->res < 0) {
             throw std::runtime_error("Error: Async readv failed");
         }
+
         FileReadCompleteTask *task = (FileReadCompleteTask*)io_uring_cqe_get_data(cqe);
-        task->exec_mode = TaskExecutionMode::SYNC;
         FileReadCompleteTaskInput* fr_input = static_cast<FileReadCompleteTaskInput*>(task->input);
-        processed += fr_input->blocks;
+        auto end = std::chrono::steady_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - task->start_time);
+        task->history.addEvent({EventType::IO, duration});
+        task->exec_mode = TaskExecutionMode::SYNC;
         scheduler->submit(task);
+
+        processed += fr_input->blocks;
     }
     io_uring_cq_advance(&ring, processed);
 }

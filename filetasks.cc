@@ -35,7 +35,6 @@ void* FileOpenTask::process() {
         throw std::runtime_error("Error: Unable to open file");
     }
     FileOpenTaskOutput *fo_output = new FileOpenTaskOutput({file_fd});
-    std::cout<<"OPENING"<<std::endl;;
     return fo_output;
 }
 
@@ -87,10 +86,14 @@ void* FileReadCompleteTask::process() {
     if (frc_input->file_size % BLOCK_SZ) blocks++;
     std::string data = "";
     for (int i = 0; i < blocks; i ++)
-        data += std::string((char*)frc_input->iovecs[i].iov_base, frc_input->iovecs[i].iov_len);;
+        data += std::string((char*)frc_input->iovecs[i].iov_base, frc_input->iovecs[i].iov_len);
+    // std::cout<<data<<std::endl;
     FileReadTaskOutput *fr_output = new FileReadTaskOutput({frc_input->file_fd, data});
-    std::cout<<"READ COMPLETE "<<data<<std::endl;
     return fr_output;
+}
+
+void FileReadCompleteTask::setStartTime() {
+    this->start_time = std::chrono::steady_clock::now();
 }
 
 FileCloseTask::FileCloseTask(bool forward_result) : Task(forward_result, TaskExecutionMode::SYNC) {}
@@ -101,6 +104,5 @@ void* FileCloseTask::process() {
     if (ret == -1) {
         throw std::runtime_error("Error: Unable to close file");
     }
-    std::cout<<"CLOSING"<<std::endl;
     return nullptr;
 }

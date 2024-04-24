@@ -17,6 +17,7 @@ void Scheduler::setFileScheduler(FileScheduler *file_scheduler) {
 }
 
 void Scheduler::submit(Task* task) {
+    std::cout << "Interactive Score: " << task->getInteractivityScore() << std::endl;
     switch (task->exec_mode) {
         case TaskExecutionMode::SYNC:
             batch_task_queue.push_back(task);
@@ -34,18 +35,21 @@ void Scheduler::process_interactive_tasks() {
         if (batch_task_queue.empty()) continue; // steal
         Task* task = batch_task_queue.front();
         batch_task_queue.pop_front();
-        try {
-            auto result = task->process();
-            if (task->next_tasks.size() > 0) {
-                for (Task* next_task : task->next_tasks) {
-                    if (task->forward_result) {
-                        next_task->setInput(result);
-                    }
-                    submit(next_task);
+
+        auto start = std::chrono::steady_clock::now();
+        auto result = task->process();
+        auto end = std::chrono::steady_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
+        task->history.addEvent({EventType::CPU, duration});
+
+        if (task->next_tasks.size() > 0) {
+            for (Task* next_task : task->next_tasks) {
+                if (task->forward_result) {
+                    next_task->setInput(result);
                 }
+                next_task->setHistory(task->history);
+                submit(next_task);
             }
-        } catch (const std::runtime_error& e) {
-            std::cout << "Caught runtime error: " << e.what() << std::endl;
         }
     }
 }

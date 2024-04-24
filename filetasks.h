@@ -1,6 +1,7 @@
 #pragma once
 
 #include <iostream>
+#include <chrono>
 #include <string.h>
 #include "task.h"
 
@@ -43,9 +44,12 @@ struct FileReadCompleteTaskInput {
 
 class FileReadCompleteTask : public Task {
 public:
+    std::chrono::_V2::steady_clock::time_point start_time;
+
     FileReadCompleteTask(bool forward_result = true);
 
     void* process() override;
+    void setStartTime();
 };
 
 struct FileOpenTaskInput {
