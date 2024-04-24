@@ -2,7 +2,29 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdexcept>
+#include <sys/stat.h>
+#include <sys/ioctl.h>
+#include <linux/fs.h>
 #include "filetasks.h"
+
+#define BLOCK_SZ    1024
+
+off_t get_file_size(int fd) {
+    struct stat st;
+    if(fstat(fd, &st) < 0) {
+        throw std::runtime_error("Error: fstat failed");
+    }
+    if (S_ISBLK(st.st_mode)) {
+        unsigned long long bytes;
+        if (ioctl(fd, BLKGETSIZE64, &bytes) != 0) {
+            throw std::runtime_error("Error: ioctl failed");
+        }
+        return bytes;
+    } else if (S_ISREG(st.st_mode)) {
+        return st.st_size;
+    }
+    return -1;
+}
 
 FileOpenTask::FileOpenTask(bool forward_result) : Task(forward_result, TaskExecutionMode::SYNC) {}
 
@@ -17,39 +39,68 @@ void* FileOpenTask::process() {
     return fo_output;
 }
 
-FileReadTask::FileReadTask(bool forward_result) : Task(forward_result, TaskExecutionMode::ASYNC_FILE) {}
+FileReadTask::FileReadTask(bool forward_result) : Task(forward_result, TaskExecutionMode::SYNC) {}
 
 void* FileReadTask::process() {
-    return nullptr;
+    FileReadTaskInput* fr_input = static_cast<FileReadTaskInput*>(input);
+    int file_fd = fr_input->file_fd;
+    off_t file_size = get_file_size(file_fd);
+    off_t bytes_remaining = file_size;
+    off_t offset = 0;
+    int current_block = 0;
+    int blocks = (int) file_size / BLOCK_SZ;
+    if (file_size % BLOCK_SZ) blocks++;
+    FileReadCompleteTaskInput *frc_input = (FileReadCompleteTaskInput*) malloc(sizeof(*frc_input) + (sizeof(struct iovec) * blocks));
+    char *buff = (char*)malloc(file_size);
+    if (!buff) {
+        throw std::runtime_error("Error: Unable to allocate memory for file read");
+    }
+    while (bytes_remaining) {
+        off_t bytes_to_read = bytes_remaining;
+        if (bytes_to_read > BLOCK_SZ) {
+            bytes_to_read = BLOCK_SZ;
+        }
+        frc_input->iovecs[current_block].iov_len = bytes_to_read;
+        void *buf;
+        if (posix_memalign(&buf, BLOCK_SZ, BLOCK_SZ)) {
+            throw std::runtime_error("Error: Posix memalign failed");
+        }
+        frc_input->iovecs[current_block].iov_base = buf;
+        current_block++;
+        bytes_remaining -= bytes_to_read;
+    }
+    frc_input->file_fd = file_fd;
+    frc_input->file_size = file_size;
+    frc_input->blocks = blocks;
+    FileReadCompleteTask* file_complete_task = new FileReadCompleteTask(this->forward_result);
+    file_complete_task->setNextTasks(this->next_tasks);
+    this->next_tasks = {file_complete_task};
+    this->forward_result = true;
+    return frc_input;
 }
 
-FileReadCompleteTask::FileReadCompleteTask(int scheduler_id, FileReadTask* file_task) : Task(file_task->forward_result, TaskExecutionMode::SYNC) {
-    this->scheduler_id = scheduler_id;
-    this->next_tasks = file_task->next_tasks;
-    FileReadTaskInput* fr_input = static_cast<FileReadTaskInput*>(file_task->input);
-    this->input = new FileReadCompleteTaskInput({fr_input->file_fd, ""});
-}
+FileReadCompleteTask::FileReadCompleteTask(bool forward_result) : Task(forward_result, TaskExecutionMode::ASYNC_FILE) {}
 
 void* FileReadCompleteTask::process() {
     FileReadCompleteTaskInput* frc_input = static_cast<FileReadCompleteTaskInput*>(input);
-    std::cout<<"READ COMPLETE "<<frc_input->data<<std::endl;
-    FileReadCompleteTaskOutput *fr_output = new FileReadCompleteTaskOutput({frc_input->file_fd, frc_input->data});
+    int blocks = (int) frc_input->file_size / BLOCK_SZ;
+    if (frc_input->file_size % BLOCK_SZ) blocks++;
+    std::string data = "";
+    for (int i = 0; i < blocks; i ++)
+        data += std::string((char*)frc_input->iovecs[i].iov_base, frc_input->iovecs[i].iov_len);;
+    FileReadTaskOutput *fr_output = new FileReadTaskOutput({frc_input->file_fd, data});
+    std::cout<<"READ COMPLETE "<<data<<std::endl;
     return fr_output;
-}
-
-void FileReadCompleteTask::setData(std::string &data) {
-    FileReadCompleteTaskInput* frc_input = static_cast<FileReadCompleteTaskInput*>(input);
-    frc_input->data = data;
 }
 
 FileCloseTask::FileCloseTask(bool forward_result) : Task(forward_result, TaskExecutionMode::SYNC) {}
 
 void* FileCloseTask::process() {
-    std::cout<<"CLOSING"<<std::endl;
     FileCloseTaskInput* fc_input = static_cast<FileCloseTaskInput*>(input);
     int ret = close(fc_input->file_fd);
     if (ret == -1) {
         throw std::runtime_error("Error: Unable to close file");
     }
+    std::cout<<"CLOSING"<<std::endl;
     return nullptr;
 }

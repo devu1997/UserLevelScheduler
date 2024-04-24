@@ -20,6 +20,13 @@ struct FileReadTaskInput {
     int file_fd;
 };
 
+struct FileReadTaskOutput : public FileCloseTaskInput {
+    std::string data;
+    FileReadTaskOutput(int file_fd, std::string data) : FileCloseTaskInput{file_fd} {
+        this->data = data;
+    }
+};
+
 class FileReadTask : public Task {
 public:
     FileReadTask(bool forward_result = true);
@@ -29,24 +36,16 @@ public:
 
 struct FileReadCompleteTaskInput {
     int file_fd;
-    std::string data;
-};
-
-struct FileReadCompleteTaskOutput : public FileCloseTaskInput {
-    std::string data;
-    FileReadCompleteTaskOutput(int file_fd, std::string data) : FileCloseTaskInput{file_fd} {
-        this->data = data;
-    }
+    off_t file_size;
+    int blocks;
+    struct iovec iovecs[];
 };
 
 class FileReadCompleteTask : public Task {
 public:
-    int scheduler_id;
-
-    FileReadCompleteTask(int scheduler_id, FileReadTask* file_task);
+    FileReadCompleteTask(bool forward_result = true);
 
     void* process() override;
-    void setData(std::string &data);
 };
 
 struct FileOpenTaskInput {

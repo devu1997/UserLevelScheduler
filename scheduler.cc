@@ -1,11 +1,16 @@
 #include <thread>
+#include <chrono>
 #include "scheduler.h"
 #include "filetasks.h"
 
 
 Scheduler::Scheduler(int id) : id(id), stop_flag(false) {}
 
-Scheduler::~Scheduler() {}
+Scheduler::~Scheduler() {
+    if (file_scheduler) {
+        delete file_scheduler;
+    }
+}
 
 void Scheduler::setFileScheduler(FileScheduler *file_scheduler) {
     this->file_scheduler = file_scheduler;
@@ -17,29 +22,16 @@ void Scheduler::submit(Task* task) {
             batch_task_queue.push_back(task);
             break;
         case TaskExecutionMode::ASYNC_FILE:
-            FileReadTask* file_task = static_cast<FileReadTask*>(task);
-            FileReadCompleteTask* file_complete_task = new FileReadCompleteTask(id, file_task);
+            FileReadCompleteTask* file_complete_task = static_cast<FileReadCompleteTask*>(task);
             file_scheduler->submit(file_complete_task);
             break;
     }
 }
 
-void Scheduler::submit_async_response_task(Task* task) {
-    std::lock_guard<std::mutex> lock(mtx);
-    async_response_task_queue.push_back(task);
-}
-
 void Scheduler::process_interactive_tasks() {
     while (!stop_flag) {
-        if (stop_flag) return;
-        {
-            std::lock_guard<std::mutex> lock(mtx);
-            if (!async_response_task_queue.empty()) {
-                batch_task_queue.insert(batch_task_queue.end(), std::make_move_iterator(async_response_task_queue.begin()), std::make_move_iterator(async_response_task_queue.end()));
-                async_response_task_queue.clear();
-            }
-        }
-        if (batch_task_queue.empty()) continue;
+        file_scheduler->process_completed();
+        if (batch_task_queue.empty()) continue; // steal
         Task* task = batch_task_queue.front();
         batch_task_queue.pop_front();
         try {
@@ -52,6 +44,7 @@ void Scheduler::process_interactive_tasks() {
                     submit(next_task);
                 }
             }
+            delete task;
         } catch (const std::runtime_error& e) {
             std::cout << "Caught runtime error: " << e.what() << std::endl;
         }
@@ -59,6 +52,8 @@ void Scheduler::process_interactive_tasks() {
 }
 
 void Scheduler::start() {
+    this->file_scheduler = new FileScheduler();
+    this->file_scheduler->setScheduler(this);
     this->process_interactive_tasks();
 }
 
