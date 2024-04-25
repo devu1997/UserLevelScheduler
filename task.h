@@ -6,10 +6,8 @@
 #include <any>
 #include <functional>
 #include "history.h"
+#include "priorities.h"
 
-
-#define SCALING_FACTOR 50
-#define INTERACTIVITY_THRESHOLD 30
 
 enum class TaskExecutionMode {
     SYNC,
@@ -23,20 +21,33 @@ private:
 public:
     int id;
     void* input;
-    std::function<void*()> func;
-    bool forward_result;
     std::vector<Task*> next_tasks;
-    TaskExecutionMode exec_mode;
     History history;
+    std::function<void*()> func = []() { return nullptr; };
+    bool forward_result = true;
+    TaskExecutionMode exec_mode = TaskExecutionMode::SYNC;
+    int niceness = DEFAULT_NICENESS;
+    long ticks = 0;
+    long ftick = 0;
+    long ltick = 0;
 
-    Task(std::function<void*()> func, bool forward_result = false, TaskExecutionMode exec_mode = TaskExecutionMode::SYNC);
-    Task(bool forward_result = false, TaskExecutionMode exec_mode = TaskExecutionMode::SYNC);
+    Task(std::function<void*()> func = []() { return nullptr; });
 
     virtual void* process() = 0;
+    virtual Task* fork() = 0;
+
     void setInput(void* input);
+    void setForwardResult(bool forward_result);
     void setNextTasks(std::vector<Task*> next_tasks);
     void setHistory(History history);
-    int getInteractivityScore();
+    void setNiceness(int niceness);
+    void setTicks(long ticks, long ftick, long ltick);
+    void setExecutionMode(TaskExecutionMode exec_mode);
+    void copy(Task* task);
+
+    int getInteractivityPenality();
+    int getPriority();
+    void updateCpuUtilization(std::chrono::steady_clock::duration duration, bool run);
 
     static int generate_task_id();
 };

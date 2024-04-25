@@ -43,7 +43,7 @@ void FileScheduler::process_completed() {
         auto end = std::chrono::steady_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - task->start_time);
         task->history.addEvent({EventType::IO, duration});
-        task->exec_mode = TaskExecutionMode::SYNC;
+        task->setExecutionMode(TaskExecutionMode::SYNC);
         scheduler->submit(task);
         processed += fr_input->blocks;
         pending_requests--;

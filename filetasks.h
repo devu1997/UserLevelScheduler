@@ -14,10 +14,10 @@ struct FileCloseTaskInput {
 
 class FileCloseTask : public Task {
 public:
-    FileCloseTask(std::function<void*()> func, bool forward_result = false);
-    FileCloseTask(bool forward_result = true);
+    using Task::Task;
 
     void* process() override;
+    Task* fork() override;
 };
 
 /* File read */
@@ -35,10 +35,10 @@ struct FileReadTaskOutput : public FileCloseTaskInput {
 
 class FileReadTask : public Task {
 public:
-    FileReadTask(std::function<void*()> func, bool forward_result = true);
-    FileReadTask(bool forward_result = true);
+    using Task::Task;
 
     void* process() override;
+    Task* fork() override;
 };
 
 struct AsyncFileReadTaskInput {
@@ -50,11 +50,13 @@ struct AsyncFileReadTaskInput {
 
 class AsyncFileReadTask : public Task {
 public:
-    std::chrono::_V2::steady_clock::time_point start_time;
-
-    AsyncFileReadTask(std::function<void*()> func, bool forward_result = true);
+    using Task::Task;
+    
+    std::chrono::steady_clock::time_point start_time;
 
     void* process() override;
+    Task* fork() override;
+
     void setStartTime();
 };
 
@@ -71,8 +73,8 @@ struct FileOpenTaskOutput : public FileReadTaskInput {
 
 class FileOpenTask : public Task {
 public:
-    FileOpenTask(std::function<void*()> func, bool forward_result = true);
-    FileOpenTask(bool forward_result = true);
+    using Task::Task;
 
     void* process() override;
+    Task* fork() override;
 };

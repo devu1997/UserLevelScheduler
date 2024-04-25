@@ -28,10 +28,6 @@ off_t get_file_size(int fd) {
 
 /* File open */
 
-FileOpenTask::FileOpenTask(std::function<void*()> func, bool forward_result) : Task(func, forward_result, TaskExecutionMode::SYNC) {}
-
-FileOpenTask::FileOpenTask(bool forward_result) : Task(forward_result, TaskExecutionMode::SYNC) {}
-
 void* FileOpenTask::process() {
     FileOpenTaskInput* fo_input = static_cast<FileOpenTaskInput*>(input);
     std::cout<<"Open file"<<std::endl;
@@ -43,11 +39,13 @@ void* FileOpenTask::process() {
     return fo_output;
 }
 
+Task* FileOpenTask::fork() {
+    FileOpenTask *task = new FileOpenTask();
+    this->copy(task);
+    return task;
+}
+
 /* File read */
-
-FileReadTask::FileReadTask(std::function<void*()> func, bool forward_result) : Task(func, forward_result, TaskExecutionMode::SYNC) {}
-
-FileReadTask::FileReadTask(bool forward_result) : Task(forward_result, TaskExecutionMode::SYNC) {}
 
 void* FileReadTask::process() {
     FileReadTaskInput* fr_input = static_cast<FileReadTaskInput*>(input);
@@ -80,15 +78,21 @@ void* FileReadTask::process() {
     frc_input->file_fd = file_fd;
     frc_input->file_size = file_size;
     frc_input->blocks = blocks;
-    AsyncFileReadTask* async_task = new AsyncFileReadTask(this->func, this->forward_result);
+    AsyncFileReadTask* async_task = new AsyncFileReadTask(this->func);
+    async_task->setForwardResult(this->forward_result);
     async_task->setNextTasks(this->next_tasks);
+    async_task->setExecutionMode(TaskExecutionMode::ASYNC_FILE);
     this->next_tasks = {async_task};
     this->forward_result = true;
     std::cout<<"Start read file of size: "<<file_size<<" block: "<<blocks<<std::endl;
     return frc_input;
 }
 
-AsyncFileReadTask::AsyncFileReadTask(std::function<void*()> func, bool forward_result) : Task(func, forward_result, TaskExecutionMode::ASYNC_FILE) {}
+Task* FileReadTask::fork() {
+    FileReadTask *task = new FileReadTask();
+    this->copy(task);
+    return task;
+}
 
 void* AsyncFileReadTask::process() {
     AsyncFileReadTaskInput* frc_input = static_cast<AsyncFileReadTaskInput*>(input);
@@ -103,15 +107,17 @@ void* AsyncFileReadTask::process() {
     return fr_output;
 }
 
+Task* AsyncFileReadTask::fork() {
+    AsyncFileReadTask *task = new AsyncFileReadTask();
+    this->copy(task);
+    return task;
+}
+
 void AsyncFileReadTask::setStartTime() {
     this->start_time = std::chrono::steady_clock::now();
 }
 
 /* File close */
-
-FileCloseTask::FileCloseTask(std::function<void*()> func, bool forward_result) : Task(func, forward_result, TaskExecutionMode::SYNC) {}
-
-FileCloseTask::FileCloseTask(bool forward_result) : Task(forward_result, TaskExecutionMode::SYNC) {}
 
 void* FileCloseTask::process() {
     FileCloseTaskInput* fc_input = static_cast<FileCloseTaskInput*>(input);
@@ -121,4 +127,10 @@ void* FileCloseTask::process() {
     }
     std::cout<<"Closed file"<<std::endl;
     return nullptr;
+}
+
+Task* FileCloseTask::fork() {
+    FileCloseTask *task = new FileCloseTask();
+    this->copy(task);
+    return task;
 }

@@ -1,17 +1,18 @@
 #include <stdexcept>
+#include "priorities.h"
 #include "priority_queue.h"
 
-PriorityQueue::PriorityQueue() : queue(SCALING_FACTOR*2), bitmap(SCALING_FACTOR*2), size_(0) {}
+PriorityQueue::PriorityQueue() : queue(NPQUEUE), bitmap(NPQUEUE), size_(0) {}
 
-void PriorityQueue::addTask(Task* task) {
-    int priority = task->getInteractivityScore();
+void PriorityQueue::addTask(Task* task, int priority) {
+    priority = priority - MIN_PRIORITY;
     queue[priority].push_back(task);
     size_++;
     bitmap[priority] = 1;
 }
 
 Task* PriorityQueue::getNextTask() {
-    for (int priority = 0; priority < SCALING_FACTOR*2; priority++) {
+    for (int priority = 0; priority < NPQUEUE; priority++) {
         if (bitmap[priority]) {
             Task* task = queue[priority].front();
             queue[priority].pop_front();

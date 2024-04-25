@@ -16,11 +16,22 @@ void Scheduler::setFileScheduler(FileScheduler *file_scheduler) {
     this->file_scheduler = file_scheduler;
 }
 
+std::chrono::steady_clock::duration Scheduler::getDuration() {
+    auto current_time = std::chrono::steady_clock::now();
+    return current_time - start_time;
+}
+
 void Scheduler::submit(Task* task) {
-    std::cout << "Interactive Score: " << task->getInteractivityScore() << std::endl;
+    int priority = task->getPriority();
+    std::cout << "Interactive Score: " << task->getPriority() << std::endl;
+    // task->updateCpuUtilization(getDuration(), 1);
     switch (task->exec_mode) {
         case TaskExecutionMode::SYNC:
-            batch_task_queue.addTask(task);
+            if (priority < PRI_MIN_BATCH) {
+                interactive_task_queue.addTask(task, priority);
+            } else {
+                batch_task_queue.addTask(task, priority);
+            }
             break;
         case TaskExecutionMode::ASYNC_FILE:
             AsyncFileReadTask* async_task = static_cast<AsyncFileReadTask*>(task);
@@ -31,8 +42,14 @@ void Scheduler::submit(Task* task) {
 
 void Scheduler::process_interactive_tasks() {
     file_scheduler->process_completed();
-    if (batch_task_queue.empty()) return; // steal
-    Task* task = batch_task_queue.getNextTask();
+    Task* task;
+    if (interactive_task_queue.empty() && batch_task_queue.empty()) return; // steal
+    if (!interactive_task_queue.empty()) {
+        task = interactive_task_queue.getNextTask();
+    } else {
+        task = batch_task_queue.getNextTask();
+    }
+    // task->updateCpuUtilization(getDuration(), true);
 
     auto start = std::chrono::steady_clock::now();
     void* result = task->process();
@@ -46,6 +63,8 @@ void Scheduler::process_interactive_tasks() {
                 next_task->setInput(result);
             }
             next_task->setHistory(task->history);
+            next_task->setNiceness(task->niceness);
+            next_task->setTicks(task->ticks, task->ftick, task->ltick);
             submit(next_task);
         }
     }

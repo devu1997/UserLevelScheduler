@@ -1,7 +1,12 @@
 #include "cputask.h"
 
-CpuTask::CpuTask(std::function<void*()> func, bool forward_result) : Task(func, forward_result, TaskExecutionMode::SYNC) {}
 
 void* CpuTask::process() {
   return func();
+}
+
+Task* CpuTask::fork() {
+    CpuTask* task = new CpuTask(this->func);
+    this->copy(task);
+    return task;
 }

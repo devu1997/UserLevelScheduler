@@ -10,8 +10,9 @@
 class CpuTask : public Task {
 
 public:
-    CpuTask(std::function<void*()> func, bool forward_result = false);
+    using Task::Task;
 
     void* process() override;
+    Task* fork() override;
     
 };
