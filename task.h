@@ -23,7 +23,6 @@ public:
     void* input;
     std::vector<Task*> next_tasks;
     History history;
-    std::function<void*()> func = []() { return nullptr; };
     bool forward_result = true;
     TaskExecutionMode exec_mode = TaskExecutionMode::SYNC;
     int niceness = DEFAULT_NICENESS;
@@ -31,7 +30,7 @@ public:
     long ftick = 0;
     long ltick = 0;
 
-    Task(std::function<void*()> func = []() { return nullptr; });
+    Task();
 
     virtual void* process() = 0;
     virtual Task* fork() = 0;

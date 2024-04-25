@@ -28,6 +28,16 @@ off_t get_file_size(int fd) {
 
 /* File open */
 
+FileOpenTask::FileOpenTask() {
+    this->func = [this](void* in, void* out) -> void* {
+        return out;
+    };
+}
+
+FileOpenTask::FileOpenTask(std::function<void*(void*, void*)> func) {
+    this->func = func;
+}
+
 void* FileOpenTask::process() {
     FileOpenTaskInput* fo_input = static_cast<FileOpenTaskInput*>(input);
     std::cout<<"Open file"<<std::endl;
@@ -36,16 +46,26 @@ void* FileOpenTask::process() {
         throw std::runtime_error("Error: Unable to open file");
     }
     FileOpenTaskOutput *fo_output = new FileOpenTaskOutput({file_fd});
-    return fo_output;
+    return func(fo_input, fo_output);
 }
 
 Task* FileOpenTask::fork() {
-    FileOpenTask *task = new FileOpenTask();
+    FileOpenTask *task = new FileOpenTask(this->func);
     this->copy(task);
     return task;
 }
 
 /* File read */
+
+FileReadTask::FileReadTask() {
+    this->func = [this](void* in, void* out) -> void* {
+        return out;
+    };
+}
+
+FileReadTask::FileReadTask(std::function<void*(void*, void*)> func) {
+    this->func = func;
+}
 
 void* FileReadTask::process() {
     FileReadTaskInput* fr_input = static_cast<FileReadTaskInput*>(input);
@@ -56,7 +76,7 @@ void* FileReadTask::process() {
     int current_block = 0;
     int blocks = (int) file_size / BLOCK_SZ;
     if (file_size % BLOCK_SZ) blocks++;
-    AsyncFileReadTaskInput *frc_input = (AsyncFileReadTaskInput*) malloc(sizeof(*frc_input) + (sizeof(struct iovec) * blocks));
+    AsyncFileTaskInput *frc_input = (AsyncFileTaskInput*) malloc(sizeof(*frc_input) + (sizeof(struct iovec) * blocks));
     char *buff = (char*)malloc(file_size);
     if (!buff) {
         throw std::runtime_error("Error: Unable to allocate memory for file read");
@@ -78,7 +98,7 @@ void* FileReadTask::process() {
     frc_input->file_fd = file_fd;
     frc_input->file_size = file_size;
     frc_input->blocks = blocks;
-    AsyncFileReadTask* async_task = new AsyncFileReadTask(this->func);
+    AsyncFileReadTask* async_task = new AsyncFileReadTask(this->input, this->func);
     async_task->setForwardResult(this->forward_result);
     async_task->setNextTasks(this->next_tasks);
     async_task->setExecutionMode(TaskExecutionMode::ASYNC_FILE);
@@ -89,35 +109,22 @@ void* FileReadTask::process() {
 }
 
 Task* FileReadTask::fork() {
-    FileReadTask *task = new FileReadTask();
+    FileReadTask *task = new FileReadTask(this->func);
     this->copy(task);
     return task;
-}
-
-void* AsyncFileReadTask::process() {
-    AsyncFileReadTaskInput* frc_input = static_cast<AsyncFileReadTaskInput*>(input);
-    int blocks = (int) frc_input->file_size / BLOCK_SZ;
-    if (frc_input->file_size % BLOCK_SZ) blocks++;
-    std::string data = "";
-    for (int i = 0; i < blocks; i ++)
-        data += std::string((char*)frc_input->iovecs[i].iov_base, frc_input->iovecs[i].iov_len);
-    // std::cout<<data<<std::endl;
-    FileReadTaskOutput *fr_output = new FileReadTaskOutput({frc_input->file_fd, data});
-    std::cout<<"Read file "<<this->next_tasks.size()<<std::endl;
-    return fr_output;
-}
-
-Task* AsyncFileReadTask::fork() {
-    AsyncFileReadTask *task = new AsyncFileReadTask();
-    this->copy(task);
-    return task;
-}
-
-void AsyncFileReadTask::setStartTime() {
-    this->start_time = std::chrono::steady_clock::now();
 }
 
 /* File close */
+
+FileCloseTask::FileCloseTask() {
+    this->func = [this](void* in) -> void* {
+        return nullptr;
+    };
+}
+
+FileCloseTask::FileCloseTask(std::function<void*(void*)> func) {
+    this->func = func;
+}
 
 void* FileCloseTask::process() {
     FileCloseTaskInput* fc_input = static_cast<FileCloseTaskInput*>(input);
@@ -126,11 +133,69 @@ void* FileCloseTask::process() {
         throw std::runtime_error("Error: Unable to close file");
     }
     std::cout<<"Closed file"<<std::endl;
-    return nullptr;
+    return func(fc_input);
 }
 
 Task* FileCloseTask::fork() {
-    FileCloseTask *task = new FileCloseTask();
+    FileCloseTask *task = new FileCloseTask(this->func);
+    this->copy(task);
+    return task;
+}
+
+/* Async tasks */
+
+void AsyncFileTask::setStartTime() {
+    this->start_time = std::chrono::steady_clock::now();
+}
+
+/* Async read task */
+
+AsyncFileReadTask::AsyncFileReadTask(void* read_input, std::function<void*(void*, void*)> func) {
+    this->func = func;
+    this->read_input = read_input;
+}
+
+void* AsyncFileReadTask::process() {
+    AsyncFileTaskInput* frc_input = static_cast<AsyncFileTaskInput*>(input);
+    int blocks = (int) frc_input->file_size / BLOCK_SZ;
+    if (frc_input->file_size % BLOCK_SZ) blocks++;
+    std::string data = "";
+    for (int i = 0; i < blocks; i ++)
+        data += std::string((char*)frc_input->iovecs[i].iov_base, frc_input->iovecs[i].iov_len);
+    std::cout<<data<<std::endl;
+    FileReadTaskOutput *fr_output = new FileReadTaskOutput({frc_input->file_fd, frc_input->iovecs});
+    std::cout<<"Read file "<<this->next_tasks.size()<<std::endl;
+    return func(read_input, fr_output);
+}
+
+Task* AsyncFileReadTask::fork() {
+    AsyncFileReadTask *task = new AsyncFileReadTask(this->read_input, this->func);
+    this->copy(task);
+    return task;
+}
+
+/* Async write task */
+
+AsyncFileWriteTask::AsyncFileWriteTask(void* write_input, std::function<void*(void*, void*)> func) {
+    this->func = func;
+    this->write_input = write_input;
+}
+
+void* AsyncFileWriteTask::process() {
+    AsyncFileTaskInput* frc_input = static_cast<AsyncFileTaskInput*>(input);
+    int blocks = (int) frc_input->file_size / BLOCK_SZ;
+    if (frc_input->file_size % BLOCK_SZ) blocks++;
+    std::string data = "";
+    for (int i = 0; i < blocks; i ++)
+        data += std::string((char*)frc_input->iovecs[i].iov_base, frc_input->iovecs[i].iov_len);
+    // std::cout<<data<<std::endl;
+    FileWriteTaskOutput *fr_output = new FileWriteTaskOutput({frc_input->file_fd, frc_input->iovecs});
+    std::cout<<"Write file "<<this->next_tasks.size()<<std::endl;
+    return func(write_input, fr_output);
+}
+
+Task* AsyncFileWriteTask::fork() {
+    AsyncFileWriteTask *task = new AsyncFileWriteTask(this->write_input, this->func);
     this->copy(task);
     return task;
 }

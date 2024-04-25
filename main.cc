@@ -18,7 +18,7 @@ int main() {
     Coordinator coordinator;
 
     Task *task1 = new CpuTask(
-        []() -> void* { 
+        [](void*) -> void* { 
           std::cout << "Running task " << ++task_counter << "\n";
           try {
               std::this_thread::sleep_for(std::chrono::milliseconds(2000));

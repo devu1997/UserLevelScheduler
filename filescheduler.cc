@@ -20,7 +20,7 @@ void FileScheduler::setScheduler(Scheduler* scheduler) {
 }
 
 void FileScheduler::submit(AsyncFileReadTask *task) {
-    AsyncFileReadTaskInput* fr_input = static_cast<AsyncFileReadTaskInput*>(task->input);
+    AsyncFileTaskInput* fr_input = static_cast<AsyncFileTaskInput*>(task->input);
     task->setStartTime();
     struct io_uring_sqe *sqe = io_uring_get_sqe(&ring);
     io_uring_prep_readv(sqe, fr_input->file_fd, fr_input->iovecs, fr_input->blocks, 0);
@@ -28,6 +28,16 @@ void FileScheduler::submit(AsyncFileReadTask *task) {
     io_uring_submit(&ring);
     pending_requests++;
 }
+
+// void FileScheduler::submit(AsyncFileWriteTask *task) {
+//     AsyncFileWriteTaskInput* fr_input = static_cast<AsyncFileWriteTaskInput*>(task->input);
+//     task->setStartTime();
+//     struct io_uring_sqe *sqe = io_uring_get_sqe(&ring);
+//     io_uring_prep_writev(sqe, fr_input->file_fd, fr_input->iovecs, fr_input->blocks, 0);
+//     io_uring_sqe_set_data(sqe, task);
+//     io_uring_submit(&ring);
+//     pending_requests++;
+// }
 
 void FileScheduler::process_completed() {
     if (pending_requests == 0) return;
@@ -38,8 +48,8 @@ void FileScheduler::process_completed() {
         if (cqe->res < 0) {
             throw std::runtime_error("Error: Async readv failed");
         }
-        AsyncFileReadTask *task = (AsyncFileReadTask*)io_uring_cqe_get_data(cqe);
-        AsyncFileReadTaskInput* fr_input = static_cast<AsyncFileReadTaskInput*>(task->input);
+        AsyncFileTask *task = (AsyncFileTask*)io_uring_cqe_get_data(cqe);
+        AsyncFileTaskInput* fr_input = static_cast<AsyncFileTaskInput*>(task->input);
         auto end = std::chrono::steady_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - task->start_time);
         task->history.addEvent({EventType::IO, duration});

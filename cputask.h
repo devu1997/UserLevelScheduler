@@ -8,9 +8,11 @@
 #include "task.h"
 
 class CpuTask : public Task {
+private:
+    std::function<void*(void*)> func;
 
 public:
-    using Task::Task;
+    CpuTask(std::function<void*(void*)> func = [](void*) { return nullptr; });
 
     void* process() override;
     Task* fork() override;

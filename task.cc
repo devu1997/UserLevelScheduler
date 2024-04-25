@@ -6,9 +6,8 @@
 
 int Task::last_task_id = 0;
 
-Task::Task(std::function<void*()> func) {
+Task::Task() {
     this->id = Task::generate_task_id();
-    this->func = func;
 }
 
 void Task::setForwardResult(bool forward_result) {
@@ -46,12 +45,7 @@ void Task::setTicks(long ticks, long ftick, long ltick) {
     this->ltick = ltick;
 }
 
-void* Task::process() {
-  return func();
-}
-
 void Task::copy(Task* task) {
-    task->func = this->func;
     task->setInput(this->input);
     task->setForwardResult(this->forward_result);
     task->setNextTasks(this->next_tasks);

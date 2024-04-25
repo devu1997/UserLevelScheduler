@@ -1,8 +1,12 @@
 #include "cputask.h"
 
 
+CpuTask::CpuTask(std::function<void*(void*)> func) : Task::Task() {
+    this->func = func;
+}
+
 void* CpuTask::process() {
-  return func();
+  return func(this->input);
 }
 
 Task* CpuTask::fork() {

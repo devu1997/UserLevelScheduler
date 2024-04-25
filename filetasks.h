@@ -13,8 +13,12 @@ struct FileCloseTaskInput {
 };
 
 class FileCloseTask : public Task {
+private:
+    std::function<void*(void*)> func;
+
 public:
-    using Task::Task;
+    FileCloseTask();
+    FileCloseTask(std::function<void*(void*)> func);
 
     void* process() override;
     Task* fork() override;
@@ -27,37 +31,50 @@ struct FileReadTaskInput {
 };
 
 struct FileReadTaskOutput : public FileCloseTaskInput {
-    std::string data;
-    FileReadTaskOutput(int file_fd, std::string data) : FileCloseTaskInput{file_fd} {
-        this->data = data;
+    struct iovec* iovecs;
+    FileReadTaskOutput(int file_fd, struct iovec* iovecs) : FileCloseTaskInput{file_fd} {
+        this->iovecs = iovecs;
     }
 };
 
 class FileReadTask : public Task {
+private:
+    std::function<void*(void*, void*)> func;
+
 public:
-    using Task::Task;
+    FileReadTask();
+    FileReadTask(std::function<void*(void*, void*)> func);
 
     void* process() override;
     Task* fork() override;
 };
 
-struct AsyncFileReadTaskInput {
+/* File write */
+
+struct FileWriteTaskInput {
     int file_fd;
     off_t file_size;
     int blocks;
     struct iovec iovecs[];
 };
 
-class AsyncFileReadTask : public Task {
+struct FileWriteTaskOutput : public FileCloseTaskInput {
+    struct iovec* iovecs;
+    FileWriteTaskOutput(int file_fd, struct iovec* iovecs) : FileCloseTaskInput{file_fd} {
+        this->iovecs = iovecs;
+    }
+};
+
+class FileWriteTask : public Task {
+private:
+    std::function<void*(void*, void*)> func;
+
 public:
-    using Task::Task;
-    
-    std::chrono::steady_clock::time_point start_time;
+    FileWriteTask();
+    FileWriteTask(std::function<void*(void*, void*)> func);
 
     void* process() override;
     Task* fork() override;
-
-    void setStartTime();
 };
 
 /* File open */
@@ -72,8 +89,58 @@ struct FileOpenTaskOutput : public FileReadTaskInput {
 };
 
 class FileOpenTask : public Task {
+private:
+    std::function<void*(void*, void*)> func;
+
+public:
+    FileOpenTask();
+    FileOpenTask(std::function<void*(void*, void*)> func);
+
+    void* process() override;
+    Task* fork() override;
+};
+
+/* Async tasks */
+
+struct AsyncFileTaskInput {
+    int file_fd;
+    off_t file_size;
+    int blocks;
+    struct iovec iovecs[];
+};
+
+class AsyncFileTask : public Task {
 public:
     using Task::Task;
+    
+    std::chrono::steady_clock::time_point start_time;
+
+    void setStartTime();
+};
+
+/* Async read task */
+
+class AsyncFileReadTask : public AsyncFileTask {
+private:
+    void* read_input;
+    std::function<void*(void*, void*)> func;
+
+public:
+    AsyncFileReadTask(void* read_input, std::function<void*(void*, void*)> func);
+    
+    void* process() override;
+    Task* fork() override;
+};
+
+/* Async write task */
+
+class AsyncFileWriteTask : public AsyncFileTask {
+private:
+    void* write_input;
+    std::function<void*(void*, void*)> func;
+
+public:
+    AsyncFileWriteTask(void* write_input, std::function<void*(void*, void*)> func);
 
     void* process() override;
     Task* fork() override;
