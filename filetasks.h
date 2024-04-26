@@ -26,17 +26,6 @@ public:
 
 /* File read */
 
-struct FileReadTaskInput {
-    int file_fd;
-};
-
-struct FileReadTaskOutput : public FileCloseTaskInput {
-    struct iovec* iovecs;
-    FileReadTaskOutput(int file_fd, struct iovec* iovecs) : FileCloseTaskInput{file_fd} {
-        this->iovecs = iovecs;
-    }
-};
-
 class FileReadTask : public Task {
 private:
     std::function<void*(void*, void*)> func;
@@ -50,20 +39,6 @@ public:
 };
 
 /* File write */
-
-struct FileWriteTaskInput {
-    int file_fd;
-    off_t file_size;
-    int blocks;
-    struct iovec iovecs[];
-};
-
-struct FileWriteTaskOutput : public FileCloseTaskInput {
-    struct iovec* iovecs;
-    FileWriteTaskOutput(int file_fd, struct iovec* iovecs) : FileCloseTaskInput{file_fd} {
-        this->iovecs = iovecs;
-    }
-};
 
 class FileWriteTask : public Task {
 private:
@@ -81,11 +56,12 @@ public:
 
 struct FileOpenTaskInput {
     const char* file_path;
-    int mode;
+    int oflag;
+    mode_t mode;
 };
 
-struct FileOpenTaskOutput : public FileReadTaskInput {
-    FileOpenTaskOutput(int file_fd) : FileReadTaskInput{file_fd} {}
+struct FileOpenTaskOutput {
+    int file_fd;
 };
 
 class FileOpenTask : public Task {
@@ -102,8 +78,7 @@ public:
 
 /* Async tasks */
 
-struct AsyncFileTaskInput {
-    int file_fd;
+struct FileTaskInput : public FileCloseTaskInput {
     off_t file_size;
     int blocks;
     struct iovec iovecs[];
@@ -122,11 +97,10 @@ public:
 
 class AsyncFileReadTask : public AsyncFileTask {
 private:
-    void* read_input;
     std::function<void*(void*, void*)> func;
 
 public:
-    AsyncFileReadTask(void* read_input, std::function<void*(void*, void*)> func);
+    AsyncFileReadTask(std::function<void*(void*, void*)> func);
     
     void* process() override;
     Task* fork() override;
@@ -136,11 +110,10 @@ public:
 
 class AsyncFileWriteTask : public AsyncFileTask {
 private:
-    void* write_input;
     std::function<void*(void*, void*)> func;
 
 public:
-    AsyncFileWriteTask(void* write_input, std::function<void*(void*, void*)> func);
+    AsyncFileWriteTask(std::function<void*(void*, void*)> func);
 
     void* process() override;
     Task* fork() override;

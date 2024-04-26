@@ -12,7 +12,7 @@ Scheduler::~Scheduler() {
     }
 }
 
-void Scheduler::setFileScheduler(FileScheduler *file_scheduler) {
+void Scheduler::setFileScheduler(FileScheduler* file_scheduler) {
     this->file_scheduler = file_scheduler;
 }
 
@@ -34,8 +34,13 @@ void Scheduler::submit(Task* task) {
             }
             break;
         case TaskExecutionMode::ASYNC_FILE:
-            AsyncFileReadTask* async_task = static_cast<AsyncFileReadTask*>(task);
-            file_scheduler->submit(async_task);
+            if (dynamic_cast<AsyncFileReadTask*>(task)) {
+                AsyncFileReadTask* async_task = dynamic_cast<AsyncFileReadTask*>(task);
+                file_scheduler->submit(async_task);
+            } else {
+                AsyncFileWriteTask* async_task = dynamic_cast<AsyncFileWriteTask*>(task);
+                file_scheduler->submit(async_task);
+            }
             break;
     }
 }

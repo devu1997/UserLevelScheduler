@@ -13,7 +13,7 @@
 class Scheduler {
 private:
     int id;
-    FileScheduler *file_scheduler;
+    FileScheduler* file_scheduler;
     PriorityQueue interactive_task_queue;
     CalenderQueue batch_task_queue;
     std::atomic<bool> stop_flag;
@@ -26,7 +26,7 @@ public:
     void submit(Task* task);
     void start();
     void stop();
-    void setFileScheduler(FileScheduler *file_scheduler);
+    void setFileScheduler(FileScheduler* file_scheduler);
 
 private:
     void process_interactive_tasks();

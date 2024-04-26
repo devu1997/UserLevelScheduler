@@ -16,7 +16,8 @@ public:
     FileScheduler();
     ~FileScheduler();
 
-    void submit(AsyncFileReadTask *task);
+    void submit(AsyncFileReadTask* task);
+    void submit(AsyncFileWriteTask* task);
     void process_completed();
     void setScheduler(Scheduler*schedulers);
 };

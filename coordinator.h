@@ -11,7 +11,7 @@
 
 class Coordinator {
 private:
-    FileScheduler *file_scheduler;
+    FileScheduler* file_scheduler;
     std::vector<Scheduler*> schedulers;
     int next_scheduler_id = 0;
     

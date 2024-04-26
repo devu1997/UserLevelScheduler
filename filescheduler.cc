@@ -1,4 +1,6 @@
 #include <stdexcept>
+#include <cstring>
+#include <cerrno>
 #include "filescheduler.h"
 
 
@@ -19,37 +21,37 @@ void FileScheduler::setScheduler(Scheduler* scheduler) {
     this->scheduler = scheduler;
 }
 
-void FileScheduler::submit(AsyncFileReadTask *task) {
-    AsyncFileTaskInput* fr_input = static_cast<AsyncFileTaskInput*>(task->input);
+void FileScheduler::submit(AsyncFileReadTask* task) {
+    FileTaskInput* fr_input = static_cast<FileTaskInput*>(task->input);
     task->setStartTime();
-    struct io_uring_sqe *sqe = io_uring_get_sqe(&ring);
+    struct io_uring_sqe* sqe = io_uring_get_sqe(&ring);
     io_uring_prep_readv(sqe, fr_input->file_fd, fr_input->iovecs, fr_input->blocks, 0);
     io_uring_sqe_set_data(sqe, task);
     io_uring_submit(&ring);
     pending_requests++;
 }
 
-// void FileScheduler::submit(AsyncFileWriteTask *task) {
-//     AsyncFileWriteTaskInput* fr_input = static_cast<AsyncFileWriteTaskInput*>(task->input);
-//     task->setStartTime();
-//     struct io_uring_sqe *sqe = io_uring_get_sqe(&ring);
-//     io_uring_prep_writev(sqe, fr_input->file_fd, fr_input->iovecs, fr_input->blocks, 0);
-//     io_uring_sqe_set_data(sqe, task);
-//     io_uring_submit(&ring);
-//     pending_requests++;
-// }
+void FileScheduler::submit(AsyncFileWriteTask* task) {
+    FileTaskInput* fr_input = static_cast<FileTaskInput*>(task->input);
+    task->setStartTime();
+    struct io_uring_sqe* sqe = io_uring_get_sqe(&ring);
+    io_uring_prep_writev(sqe, fr_input->file_fd, fr_input->iovecs, fr_input->blocks, 0);
+    io_uring_sqe_set_data(sqe, task);
+    io_uring_submit(&ring);
+    pending_requests++;
+}
 
 void FileScheduler::process_completed() {
     if (pending_requests == 0) return;
-    struct io_uring_cqe *cqe;
+    struct io_uring_cqe* cqe;
     unsigned head;
     int processed{0};
     io_uring_for_each_cqe(&ring, head, cqe) {
         if (cqe->res < 0) {
-            throw std::runtime_error("Error: Async readv failed");
+            throw std::runtime_error(std::string("Error: Async request failed: ") + std::to_string(cqe->res));
         }
-        AsyncFileTask *task = (AsyncFileTask*)io_uring_cqe_get_data(cqe);
-        AsyncFileTaskInput* fr_input = static_cast<AsyncFileTaskInput*>(task->input);
+        AsyncFileTask* task = (AsyncFileTask*)io_uring_cqe_get_data(cqe);
+        FileTaskInput* fr_input = static_cast<FileTaskInput*>(task->input);
         auto end = std::chrono::steady_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - task->start_time);
         task->history.addEvent({EventType::IO, duration});

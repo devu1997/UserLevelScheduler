@@ -14,42 +14,111 @@
 
 int task_counter = 0;
 
+struct FileOpenTaskInputExtention : public FileOpenTaskInput {
+  FileTaskInput* ro;
+
+  FileOpenTaskInputExtention(const char* file_path, int oflag, mode_t mode, FileTaskInput* ro) : FileOpenTaskInput({file_path, oflag, mode}) {
+    this->ro = ro;
+  }
+};
+
+
 int main() {
     Coordinator coordinator;
 
-    Task *task1 = new CpuTask(
+    Task* task1 = new CpuTask(
         [](void*) -> void* { 
-          std::cout << "Running task " << ++task_counter << "\n";
-          try {
-              std::this_thread::sleep_for(std::chrono::milliseconds(2000));
-          } catch (const std::runtime_error& e) {
-              std::cout << "Caught runtime error: " << e.what() << std::endl;
-          } catch (const std::exception& e) {
-              std::cout << "Caught exception: " << e.what() << std::endl;
-          } catch (...) {
-              std::cout << "Caught unknown exception" << std::endl;
-          } 
-          return nullptr;
+            std::cout << "Running task " << ++task_counter << "\n";
+            try {
+                std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+            } catch (const std::runtime_error& e) {
+                std::cout << "Caught runtime error: " << e.what() << std::endl;
+            } catch (const std::exception& e) {
+                std::cout << "Caught exception: " << e.what() << std::endl;
+            } catch (...) {
+                std::cout << "Caught unknown exception" << std::endl;
+            } 
+            return nullptr;
         }
       );
     task1->setForwardResult(false);
 
-    FileOpenTask *fo = new FileOpenTask();
-    fo->setInput(new FileOpenTaskInput({"/home/users/devika/os/custom-project/log.txt", O_RDONLY}));
-    FileReadTask *fr = new FileReadTask();
-    FileCloseTask *fc = new FileCloseTask();
-    
+    FileOpenTask* fro = new FileOpenTask(
+        [](void* input, void* output) -> void* {
+            FileOpenTaskOutput* fo_output = static_cast<FileOpenTaskOutput*>(output);
+            int file_fd = fo_output->file_fd;
+            off_t file_size = get_file_size(file_fd);
+            off_t bytes_remaining = file_size;
+            off_t offset = 0;
+            int current_block = 0;
+            int blocks = (int) file_size / BLOCK_SZ;
+            if (file_size % BLOCK_SZ) blocks++;
+            FileTaskInput* ft_input = (FileTaskInput*) malloc(sizeof(*ft_input) + (sizeof(struct iovec)*  blocks));
+            char* buff = (char*)malloc(file_size);
+            if (!buff) {
+                throw std::runtime_error("Error: Unable to allocate memory for file read");
+            }
+            while (bytes_remaining) {
+                off_t bytes_to_read = bytes_remaining;
+                if (bytes_to_read > BLOCK_SZ) {
+                    bytes_to_read = BLOCK_SZ;
+                }
+                ft_input->iovecs[current_block].iov_len = bytes_to_read;
+                void* buf;
+                if (posix_memalign(&buf, BLOCK_SZ, BLOCK_SZ)) {
+                    throw std::runtime_error("Error: Posix memalign failed");
+                }
+                ft_input->iovecs[current_block].iov_base = buf;
+                current_block++;
+                bytes_remaining -= bytes_to_read;
+            }
+            ft_input->file_fd = file_fd;
+            ft_input->file_size = file_size;
+            ft_input->blocks = blocks;
+            return ft_input;
+        }
+    );
+    fro->setInput(new FileOpenTaskInput({"/home/users/devika/os/UserLevelScheduler/log.txt", O_RDONLY | O_DIRECT}));
+
+    FileReadTask* frr = new FileReadTask();
+
+    FileCloseTask* frc = new FileCloseTask(
+      [](void* in) -> void* {
+        FileTaskInput* ptr = static_cast<FileTaskInput*>(in);
+        FileOpenTaskInputExtention* out = new FileOpenTaskInputExtention("/home/users/devika/os/UserLevelScheduler/logh.txt", O_RDWR | O_CREAT | O_TRUNC | O_DIRECT, 0644 , ptr);
+        return out;
+      }
+    );
+  
+    FileOpenTask* fwo = new FileOpenTask(
+      [](void* in, void* out) -> void* {
+        FileOpenTaskInputExtention* fo_in = static_cast<FileOpenTaskInputExtention*>(in);
+        FileOpenTaskOutput* fo_out = static_cast<FileOpenTaskOutput*>(out);
+        fo_in->ro->file_fd = fo_out->file_fd;
+        return fo_in->ro;
+      }
+    );
+    FileWriteTask* fwr = new FileWriteTask();
+    FileCloseTask* fwc = new FileCloseTask();
+
     Task* start = task1->fork();
     Task* task1_fork = start;
     for (int i=0; i<10; i++) {
-      Task* fo_fork = fo->fork();
-      Task* fr_fork = fr->fork();
-      Task* fc_fork = fc->fork();
-      task1_fork->setNextTasks({fo_fork});
-      fo_fork->setNextTasks({fr_fork});
-      fr_fork->setNextTasks({fc_fork});
+      Task* fro_fork = fro->fork();
+      Task* frr_fork = frr->fork();
+      Task* frc_fork = frc->fork();
+      Task* fwo_fork = fwo->fork();
+      Task* fwr_fork = fwr->fork();
+      Task* fwc_fork = fwc->fork();
+
+      task1_fork->setNextTasks({fro_fork});
+      fro_fork->setNextTasks({frr_fork});
+      frr_fork->setNextTasks({frc_fork});
+      frc_fork->setNextTasks({fwo_fork});
+      fwo_fork->setNextTasks({fwr_fork});
+      fwr_fork->setNextTasks({fwc_fork});
       task1_fork = task1->fork();
-      fc_fork->setNextTasks({task1_fork});
+      fwc_fork->setNextTasks({task1_fork});
     }
     
     coordinator.submit(start);
