@@ -1,4 +1,6 @@
 #include <thread>
+#include <cstring>
+#include <cerrno>
 #include "coordinator.h"
 
 Coordinator::Coordinator() {

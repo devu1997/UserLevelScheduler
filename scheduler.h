@@ -17,7 +17,7 @@ private:
     PriorityQueue interactive_task_queue;
     CalenderQueue batch_task_queue;
     std::atomic<bool> stop_flag;
-    std::chrono::steady_clock::time_point start_time = std::chrono::steady_clock::now();
+    std::chrono::milliseconds total_duration = std::chrono::milliseconds(0);
     
 public:
     Scheduler(int id);
@@ -30,5 +30,6 @@ public:
 
 private:
     void process_interactive_tasks();
-    std::chrono::steady_clock::duration getDuration();
+    double getCurrentTicks();
+    void addToCurrentTicks(std::chrono::milliseconds duration);
 };

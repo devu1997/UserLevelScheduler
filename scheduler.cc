@@ -16,15 +16,17 @@ void Scheduler::setFileScheduler(FileScheduler* file_scheduler) {
     this->file_scheduler = file_scheduler;
 }
 
-std::chrono::steady_clock::duration Scheduler::getDuration() {
-    auto current_time = std::chrono::steady_clock::now();
-    return current_time - start_time;
+double Scheduler::getCurrentTicks() {
+    return (total_duration.count() * hz) / 1000;
+}
+
+void Scheduler::addToCurrentTicks(std::chrono::milliseconds duration) {
+    total_duration = total_duration + duration;
 }
 
 void Scheduler::submit(Task* task) {
     int priority = task->getPriority();
     std::cout << "Interactive Score: " << task->getPriority() << " Run time: " << task->history.run_time.count() << " Sleep time: " << task->history.sleep_time.count() << std::endl;
-    // task->updateCpuUtilization(getDuration(), 1);
     switch (task->exec_mode) {
         case TaskExecutionMode::SYNC:
             if (priority < CALENDERQ_MIN_PRIORITY) {
@@ -56,13 +58,16 @@ void Scheduler::process_interactive_tasks() {
     } else {
         task = batch_task_queue.getNextTask();
     }
-    // task->updateCpuUtilization(getDuration(), true);
 
+    task->updateCpuUtilization(getCurrentTicks(), false);
     auto start = std::chrono::steady_clock::now();
     void* result = task->process();
     auto end = std::chrono::steady_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     task->history.addEvent({EventType::CPU, duration});
+    addToCurrentTicks(duration);
+    task->updateCpuUtilization(getCurrentTicks(), true);
+
 
     if (task->next_tasks.size() > 0) {
         for (Task* next_task : task->next_tasks) {
@@ -70,7 +75,7 @@ void Scheduler::process_interactive_tasks() {
                 next_task->setInput(result);
             }
             next_task->setHistory(task->history);
-            next_task->setNiceness(task->niceness);
+            next_task->setNiceness(task->niceness); // TODO: Have extra field to decide when to propogate niceness
             next_task->setTicks(task->ticks, task->ftick, task->ltick);
             submit(next_task);
         }

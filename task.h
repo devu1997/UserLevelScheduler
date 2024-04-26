@@ -46,7 +46,7 @@ public:
 
     int getInteractivityPenality();
     int getPriority();
-    void updateCpuUtilization(std::chrono::steady_clock::duration duration, bool run);
+    void updateCpuUtilization(double duration, bool run);
 
     static int generate_task_id();
 };

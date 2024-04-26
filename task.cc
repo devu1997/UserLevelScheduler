@@ -69,48 +69,43 @@ int Task::getInteractivityPenality() {
     return penality;
 }
 
-void Task::updateCpuUtilization(std::chrono::steady_clock::duration duration, bool run) {
-    long t = (duration.count() * std::chrono::steady_clock::period::den) / std::chrono::steady_clock::period::num;
-    std::cout<<" ticks: "<<t<<" task_ticks: "<<ticks<<" ftick: "<<ftick<<" ltick: "<<ltick<<"\n";
-    
+void Task::updateCpuUtilization(double total_ticks, bool run) {
+    long t = total_ticks;
+    std::cout<<"Before ticks: "<<t<<" task_ticks: "<<ticks<<" ftick: "<<ftick<<" ltick: "<<ltick<<"\n";
     if ((u_int)(t - ltick) >= SCHED_TICK_TARG) {
         ticks = 0;
         ftick = t - SCHED_TICK_TARG;
     } else if (t - ftick >= SCHED_TICK_MAX) {
-    std::cout<<" ticks: "<<t<<" task_ticks: "<<ticks<<" ftick: "<<ftick<<" ltick: "<<ltick<<"\n";
         ticks = (ticks / (ltick - ftick)) * (ltick - (t - SCHED_TICK_TARG));
         ftick = t - SCHED_TICK_TARG;
     }
-    std::cout<<" ticks: "<<t<<" task_ticks: "<<ticks<<" ftick: "<<ftick<<" ltick: "<<ltick<<"\n";
     if (run) {
         ticks += (t - ltick) << SCHED_TICK_SHIFT;
     }
     ltick = t;
-    std::cout<<" ticks: "<<t<<" task_ticks: "<<ticks<<" ftick: "<<ftick<<" ltick: "<<ltick<<"\n";
 }
 
 int Task::getPriority() {
     int penality = getInteractivityPenality();
     int score = std::max(0, penality + niceness);
-    return score;
-    // int priority = 0;
-    // if (score < SCHED_INTERACT_THRESH) {
-    //     priority = PRI_MIN_INTERACT;
-    //     priority += (PRI_MAX_INTERACT - PRI_MIN_INTERACT + 1) * score / SCHED_INTERACT_THRESH;
-    //     if (priority < PRI_MIN_INTERACT || priority > PRI_MAX_INTERACT) {
-    //         throw std::runtime_error("Error: Interactive priority out of range");
-    //     }
-    // } else {
-    //     priority = SCHED_PRI_MIN;
-    //     if (ticks) {
-    //         priority += std::min((int) SCHED_PRI_TICKS(ticks, ltick, ftick), SCHED_PRI_RANGE - 1);
-    //         priority += niceness;
-    //         if (priority < PRI_MIN_BATCH || priority > PRI_MAX_BATCH) {
-    //             throw std::runtime_error("Error: Batch priority out of range");
-    //         }
-    //     }
-    // }
-    // return priority;
+    int priority = 0;
+    if (score < SCHED_INTERACT_THRESH) {
+        priority = PRI_MIN_INTERACT;
+        priority += (PRI_MAX_INTERACT - PRI_MIN_INTERACT + 1) * score / SCHED_INTERACT_THRESH;
+        if (priority < PRI_MIN_INTERACT || priority > PRI_MAX_INTERACT) {
+            throw std::runtime_error("Error: Interactive priority out of range");
+        }
+    } else {
+        priority = SCHED_PRI_MIN;
+        if (ticks) {
+            priority += std::min((int) SCHED_PRI_TICKS(ticks, ltick, ftick), SCHED_PRI_RANGE - 1);
+            priority += niceness;
+            if (priority < PRI_MIN_BATCH || priority > PRI_MAX_BATCH) {
+                throw std::runtime_error("Error: Batch priority out of range");
+            }
+        }
+    }
+    return priority;
 }
 
 int Task::generate_task_id() {
