@@ -24,8 +24,10 @@ void Coordinator::submit(Task* task) {
 }
 
 void Coordinator::start() {
+    #ifdef ENABLE_PINNING
     #ifdef __linux__
     std::cout << "Thread pinning enabled" << std::endl;
+    #endif
     #endif
 
     std::vector<std::thread> threads;
@@ -35,6 +37,7 @@ void Coordinator::start() {
         threads.emplace_back([&scheduler, core_to_run] {
             try {
                 // Set CPU affinity
+                #ifdef ENABLE_PINNING
                 #ifdef __linux__
                 cpu_set_t cpuset;
                 CPU_ZERO(&cpuset);       
@@ -43,7 +46,7 @@ void Coordinator::start() {
                     throw std::runtime_error(std::string("pthread_setaffinity_np failed: ") + std::strerror(errno));
                 }
                 #endif
-                
+                #endif
                 scheduler->start(); 
             } catch (const std::runtime_error& e) {
                 std::cout << "Caught runtime error: " << e.what() << std::endl;
