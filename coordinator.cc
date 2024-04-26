@@ -35,7 +35,7 @@ void Coordinator::start() {
                 // Set CPU affinity
                 #ifdef __linux__
                 cpu_set_t cpuset;
-                CPU_ZERO(&cpuset);             // Clear CPU affinity set
+                CPU_ZERO(&cpuset);       
                 CPU_SET(core_to_run, &cpuset);
                 if (pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset) != 0) {
                     throw std::runtime_error(std::string("pthread_setaffinity_np failed: ") + std::strerror(errno));

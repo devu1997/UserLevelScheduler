@@ -23,13 +23,15 @@ std::chrono::steady_clock::duration Scheduler::getDuration() {
 
 void Scheduler::submit(Task* task) {
     int priority = task->getPriority();
-    std::cout << "Interactive Score: " << task->getPriority() << std::endl;
+    std::cout << "Interactive Score: " << task->getPriority() << " Run time: " << task->history.run_time.count() << " Sleep time: " << task->history.sleep_time.count() << std::endl;
     // task->updateCpuUtilization(getDuration(), 1);
     switch (task->exec_mode) {
         case TaskExecutionMode::SYNC:
-            if (priority < PRI_MIN_BATCH) {
+            if (priority < CALENDERQ_MIN_PRIORITY) {
+                std::cout<<"Interactive\n";
                 interactive_task_queue.addTask(task, priority);
             } else {
+                std::cout<<"Batch\n";
                 batch_task_queue.addTask(task, priority);
             }
             break;
@@ -73,6 +75,7 @@ void Scheduler::process_interactive_tasks() {
             submit(next_task);
         }
     }
+    delete task;
 }
 
 void Scheduler::start() {

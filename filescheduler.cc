@@ -22,22 +22,28 @@ void FileScheduler::setScheduler(Scheduler* scheduler) {
 }
 
 void FileScheduler::submit(AsyncFileReadTask* task) {
-    FileTaskInput* fr_input = static_cast<FileTaskInput*>(task->input);
+    FileTaskInput* ft_input = static_cast<FileTaskInput*>(task->input);
     task->setStartTime();
     struct io_uring_sqe* sqe = io_uring_get_sqe(&ring);
-    io_uring_prep_readv(sqe, fr_input->file_fd, fr_input->iovecs, fr_input->blocks, 0);
+    io_uring_prep_readv(sqe, ft_input->file_fd, ft_input->iovecs, ft_input->blocks, 0);
     io_uring_sqe_set_data(sqe, task);
-    io_uring_submit(&ring);
+    int ret = io_uring_submit(&ring);
+    if (ret < 0) {
+        throw std::runtime_error(std::string("Error: File read submission failed: ") + std::to_string(ret));
+    }
     pending_requests++;
 }
 
 void FileScheduler::submit(AsyncFileWriteTask* task) {
-    FileTaskInput* fr_input = static_cast<FileTaskInput*>(task->input);
+    FileTaskInput* ft_input = static_cast<FileTaskInput*>(task->input);
     task->setStartTime();
     struct io_uring_sqe* sqe = io_uring_get_sqe(&ring);
-    io_uring_prep_writev(sqe, fr_input->file_fd, fr_input->iovecs, fr_input->blocks, 0);
+    io_uring_prep_writev(sqe, ft_input->file_fd, ft_input->iovecs, ft_input->blocks, 0);
     io_uring_sqe_set_data(sqe, task);
-    io_uring_submit(&ring);
+    int ret = io_uring_submit(&ring);
+    if (ret < 0) {
+        throw std::runtime_error(std::string("Error: File write submission failed: ") + std::to_string(ret));
+    }
     pending_requests++;
 }
 
@@ -48,7 +54,7 @@ void FileScheduler::process_completed() {
     int processed{0};
     io_uring_for_each_cqe(&ring, head, cqe) {
         if (cqe->res < 0) {
-            throw std::runtime_error(std::string("Error: Async request failed: ") + std::to_string(cqe->res));
+            throw std::runtime_error(std::string("Error: Async request processing failed: ") + std::to_string(cqe->res));
         }
         AsyncFileTask* task = (AsyncFileTask*)io_uring_cqe_get_data(cqe);
         FileTaskInput* fr_input = static_cast<FileTaskInput*>(task->input);
@@ -57,7 +63,7 @@ void FileScheduler::process_completed() {
         task->history.addEvent({EventType::IO, duration});
         task->setExecutionMode(TaskExecutionMode::SYNC);
         scheduler->submit(task);
-        processed += fr_input->blocks;
+        processed++;
         pending_requests--;
     }
     io_uring_cq_advance(&ring, processed);
