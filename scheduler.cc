@@ -84,7 +84,7 @@ void Scheduler::process_interactive_tasks() {
                     }
                     current_task_count--;
                     ev.scheduler->submitToCompletionQueue(task, this);
-                    logger.info("Donated");
+                    logger.trace("Donated");
                 }
             }
         }
@@ -98,7 +98,7 @@ void Scheduler::process_interactive_tasks() {
                 Task* task = completion_queues[scheduler_id].deque();
                 submit(task);
                 current_stealable_task_count--;
-                logger.info("Accepted donation");
+                logger.trace("Accepted donation");
             }
         }
     }
@@ -107,7 +107,7 @@ void Scheduler::process_interactive_tasks() {
     if (interactive_task_queue.empty() && batch_task_queue.empty()) {
         if (current_stealable_task_count > 0) return;
         current_stealable_task_count = coordinator->stealTasks(this);
-        if (current_stealable_task_count > 0) logger.info("Requested to donate %d", current_stealable_task_count);
+        if (current_stealable_task_count > 0) logger.trace("Requested to donate %d", current_stealable_task_count);
         return;
     }
 
