@@ -2,7 +2,23 @@
 #include <cstring>
 #include <cerrno>
 #include <cmath>
+#include <csignal>
+#include <cstdlib>
+#include <execinfo.h>
 #include "coordinator.h"
+
+void signalHandler(int signal) {
+    logger.error("Error: Segmentation fault (signal %d)", signal);
+
+    // Print stack trace
+    constexpr int maxFrames = 64;
+    void* callstack[maxFrames];
+    int numFrames = backtrace(callstack, maxFrames);
+    backtrace_symbols_fd(callstack, numFrames, STDERR_FILENO);
+
+    // Terminate the program
+    std::exit(EXIT_FAILURE);
+}
 
 Coordinator::Coordinator() {
     int max_threads = std::thread::hardware_concurrency();
@@ -56,6 +72,7 @@ void Coordinator::start() {
     for (auto &scheduler : schedulers) {
         scheduler->setCoordinator(this);
         threads.emplace_back([&scheduler, core_to_run] {
+            std::signal(SIGSEGV, signalHandler);
             try {
                 // Set CPU affinity
                 #ifdef ENABLE_PINNING
