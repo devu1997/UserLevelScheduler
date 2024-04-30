@@ -47,7 +47,7 @@ void* FileOpenTask::process() {
         throw std::runtime_error(std::string("Error: Unable to open file: ") + std::strerror(errno));
     }
     FileOpenTaskOutput* fo_output = new FileOpenTaskOutput({file_fd});
-    std::cout<<"Open file: "<<file_fd<<std::endl;
+    logger.trace("Opened file: %d", file_fd);
     return func(fo_input, fo_output);
 }
 
@@ -76,7 +76,7 @@ void* FileReadTask::process() {
     async_task->setExecutionMode(TaskExecutionMode::ASYNC_FILE);
     this->next_tasks = {async_task};
     this->forward_result = true;
-    std::cout<<"Start read file" << std::endl;
+    logger.trace("Start read file");
     return input;
 }
 
@@ -105,7 +105,7 @@ void* FileWriteTask::process() {
     async_task->setExecutionMode(TaskExecutionMode::ASYNC_FILE);
     this->next_tasks = {async_task};
     this->forward_result = true;
-    std::cout<<"Start writing file"<<std::endl;
+    logger.trace("Start writing file");
     return input;
 }
 
@@ -133,7 +133,7 @@ void* FileCloseTask::process() {
     if (ret == -1) {
         throw std::runtime_error("Error: Unable to close file");
     }
-    std::cout<<"Closed file"<<std::endl;
+    logger.trace("Closed file: %d", fc_input->file_fd);
     return func(fc_input);
 }
 
@@ -157,7 +157,7 @@ AsyncFileReadTask::AsyncFileReadTask(std::function<void*(void*, void*)> func) {
 
 void* AsyncFileReadTask::process() {
     FileTaskInput* ft_input = static_cast<FileTaskInput*>(input);
-    std::cout<<"Read file "<<std::endl;
+    logger.trace("Read file");
     return func(input, ft_input);
 }
 
@@ -175,7 +175,7 @@ AsyncFileWriteTask::AsyncFileWriteTask(std::function<void*(void*, void*)> func) 
 
 void* AsyncFileWriteTask::process() {
     FileTaskInput* ft_input = static_cast<FileTaskInput*>(input);
-    std::cout<<"Write file "<<std::endl;
+    logger.trace("Write file");
     return func(input, ft_input);
 }
 

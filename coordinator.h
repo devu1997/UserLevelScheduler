@@ -4,10 +4,13 @@
 #include <unordered_map>
 #include <mutex>
 #include <atomic>
+#include "logger.h"
 #include "task.h"
 #include "scheduler.h"
 #include "filescheduler.h"
 
+
+#define MAX_STEAL_TASKS 10
 
 class Coordinator {
 private:
@@ -20,6 +23,7 @@ public:
     ~Coordinator();
 
     void submit(Task* task);
+    int stealTasks(Scheduler* scheduler);
     void start();
     void stop();
 };

@@ -1,13 +1,15 @@
 #include <iostream>
+#include "logger.cc"
 #include "history.cc"
 #include "task.cc"
 #include "cputask.cc"
 #include "filetasks.cc"
 #include "priority_queue.cc"
 #include "calender_queue.cc"
+#include "ring_buffer.cc"
+#include "coordinator.cc"
 #include "scheduler.cc"
 #include "filescheduler.cc"
-#include "coordinator.cc"
 #include <fcntl.h>
 #include <thread>
 #include <chrono>
@@ -81,7 +83,7 @@ int main() {
     Task* task1 = new CpuTask(
         [](void*) -> void* { 
             std::cout << "Running task " << ++task_counter << "\n";
-            generatePrimes(100000);
+            generatePrimes(1000000);
             return nullptr;
         }
       );
@@ -142,7 +144,7 @@ int main() {
 
     Task* start_cpu = task1->fork();
     Task* task1_fork1 = start_cpu;
-    for (int i=0; i<2; i++) {
+    // for (int i=0; i<2; i++) {
       // Task* fro_fork = fro->fork();
       // Task* frr_fork = frr->fork();
       // Task* frc_fork = frc->fork();
@@ -157,14 +159,15 @@ int main() {
       // fwr_fork->setNextTasks({fwc_fork});
       // task1_fork1 = task1->fork();
       // fwc_fork->setNextTasks({task1_fork1});
+      std::vector<Task*> next_tasks;
       for (int i=0; i<100; i++) {
         Task* task1_fork2 = task1->fork();
-        task1_fork1->setNextTasks({task1_fork2});
-        task1_fork1 = task1_fork2;
+        next_tasks.push_back(task1_fork2);
       }
-    }
+      task1_fork1->setNextTasks(next_tasks);
+    // }
     
-    coordinator.submit(start_io);
+    // coordinator.submit(start_io);
     coordinator.submit(start_cpu);
     coordinator.start();
 

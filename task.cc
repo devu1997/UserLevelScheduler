@@ -71,7 +71,7 @@ int Task::getInteractivityPenality() {
 
 void Task::updateCpuUtilization(double total_ticks, bool run) {
     long t = total_ticks;
-    std::cout<<"Before ticks: "<<t<<" task_ticks: "<<ticks<<" ftick: "<<ftick<<" ltick: "<<ltick<<"\n";
+    logger.trace("Before ticks: %d task_ticks: %d ftick: %d ltick: %d", t, ticks, ftick, ltick);
     if ((u_int)(t - ltick) >= SCHED_TICK_TARG) {
         ticks = 0;
         ftick = t - SCHED_TICK_TARG;

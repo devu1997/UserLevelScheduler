@@ -1,6 +1,7 @@
 #include <thread>
 #include <cstring>
 #include <cerrno>
+#include <cmath>
 #include "coordinator.h"
 
 Coordinator::Coordinator() {
@@ -18,6 +19,25 @@ Coordinator::~Coordinator() {
     }
 }
 
+int Coordinator::stealTasks(Scheduler* scheduler) {
+    int total_tasks = 0;
+    int max_tasks = 0;
+    Scheduler* max_tasks_scheduler;
+    for (auto &curr_scheduler : schedulers) {
+        if (curr_scheduler->id == scheduler->id) continue;
+        total_tasks = total_tasks + curr_scheduler->current_task_count;
+        if (max_tasks < curr_scheduler->current_task_count) {
+            max_tasks = curr_scheduler->current_task_count;
+            max_tasks_scheduler = curr_scheduler;
+        }
+    }
+    int stealable_task_count = std::min(MAX_STEAL_TASKS, max_tasks - (int)std::ceil(((total_tasks * 1.0) / schedulers.size())));
+    if (stealable_task_count > 0) {
+        max_tasks_scheduler->submitToSubmissionQueue(stealable_task_count, scheduler);
+    }
+    return stealable_task_count;
+}
+
 void Coordinator::submit(Task* task) {
     schedulers[next_scheduler_id]->submit(task);
     next_scheduler_id = (next_scheduler_id + 1) % schedulers.size();
@@ -26,7 +46,7 @@ void Coordinator::submit(Task* task) {
 void Coordinator::start() {
     #ifdef ENABLE_PINNING
     #ifdef __linux__
-    std::cout << "Thread pinning enabled" << std::endl;
+    logger.info("Thread pinning enabled")
     #endif
     #endif
 
@@ -34,6 +54,7 @@ void Coordinator::start() {
     int core_to_run = 0;
     int max_cores = std::thread::hardware_concurrency();
     for (auto &scheduler : schedulers) {
+        scheduler->setCoordinator(this);
         threads.emplace_back([&scheduler, core_to_run] {
             try {
                 // Set CPU affinity
@@ -49,11 +70,11 @@ void Coordinator::start() {
                 #endif
                 scheduler->start(); 
             } catch (const std::runtime_error& e) {
-                std::cout << "Caught runtime error: " << e.what() << std::endl;
+                logger.error("Caught runtime error: %s", e.what());
             } catch (const std::exception& e) {
-                std::cout << "Caught exception: " << e.what() << std::endl;
+                logger.error("Caught exception: %s", e.what());
             } catch (...) {
-                std::cout << "Caught unknown exception" << std::endl;
+                logger.error("Caught unknown exception");
             }
         });
         core_to_run = (core_to_run + 1) % max_cores;
