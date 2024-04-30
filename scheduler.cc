@@ -6,6 +6,7 @@
 
 Scheduler::Scheduler(int id) : id(id), stop_flag(false) {
     current_task_count = 0;
+    in_process_steal_requests = 0;
     submitted_request_count = 0;
     completed_request_count = 0;
     this->file_scheduler = new FileScheduler();
@@ -57,12 +58,27 @@ void Scheduler::submit(Task* task) {
 
 void Scheduler::submitToSubmissionQueue(int task_count, Scheduler* scheduler) {
     submission_queues[scheduler->id].enque({task_count, scheduler});
-    submitted_request_count += task_count;
+    submitted_request_count++;
 }
 
 void Scheduler::submitToCompletionQueue(Task* task, Scheduler* scheduler) {
     completion_queues[scheduler->id].enque(task);
     completed_request_count++;
+}
+
+void Scheduler::advanceCompletionQueue() {
+    in_process_steal_requests--;
+}
+
+Task* Scheduler::getNextTask() {
+    Task* task;
+    if (!interactive_task_queue.empty()) {
+        task = interactive_task_queue.getNextTask();
+    } else {
+        task = batch_task_queue.getNextTask();
+    }
+    current_task_count--;
+    return task;
 }
 
 void Scheduler::process_interactive_tasks() {
@@ -74,18 +90,14 @@ void Scheduler::process_interactive_tasks() {
         for (auto &itr : submission_queues) {
             int scheduler_id = itr.first;
             while (!submission_queues[scheduler_id].empty()) {
-                StealRequest ev = submission_queues[scheduler_id].deque();
-                for (int i=0; i<current_task_count && i<ev.task_count; i++) {
-                    Task* task;
-                    if (!interactive_task_queue.empty()) {
-                        task = interactive_task_queue.getNextTask();
-                    } else {
-                        task = batch_task_queue.getNextTask();
-                    }
-                    current_task_count--;
-                    ev.scheduler->submitToCompletionQueue(task, this);
-                    logger.trace("Donated");
+                StealRequest *ev = submission_queues[scheduler_id].frontPtr();
+                submission_queues[scheduler_id].popFront();
+                for (int i=0; i<current_task_count && i<ev->task_count; i++) {
+                    Task* task = getNextTask();
+                    ev->scheduler->submitToCompletionQueue(task, this);
                 }
+                submitted_request_count--;
+                advanceCompletionQueue();
             }
         }
     }
@@ -95,30 +107,26 @@ void Scheduler::process_interactive_tasks() {
         for (auto &itr : completion_queues) {
             int scheduler_id = itr.first;
             while (!completion_queues[scheduler_id].empty()) {
-                Task* task = completion_queues[scheduler_id].deque();
-                submit(task);
-                current_stealable_task_count--;
-                logger.trace("Accepted donation");
+                Task** task = completion_queues[scheduler_id].frontPtr();
+                completion_queues[scheduler_id].popFront();
+                submit(*task);
+                completed_request_count--;
             }
         }
     }
 
     // Request for tasks to steal
     if (interactive_task_queue.empty() && batch_task_queue.empty()) {
-        if (current_stealable_task_count > 0) return;
-        current_stealable_task_count = coordinator->stealTasks(this);
-        if (current_stealable_task_count > 0) logger.trace("Requested to donate %d", current_stealable_task_count);
+        if (in_process_steal_requests > 0) return;
+        int ret = coordinator->stealTasks(this);
+        if (ret > 0) {
+            in_process_steal_requests++;
+        }
         return;
     }
 
     // Run tasks from task queue;
-    Task* task;
-    if (!interactive_task_queue.empty()) {
-        task = interactive_task_queue.getNextTask();
-    } else {
-        task = batch_task_queue.getNextTask();
-    }
-    current_task_count--;
+    Task* task = getNextTask();
 
     logger.info("Scheduler %d running task %d", id, task->id);
     task->updateCpuUtilization(getCurrentTicks(), false);

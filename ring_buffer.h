@@ -42,15 +42,13 @@ private:
     // readIdxCache and writeIdxCache is used to reduce the amount of cache
     // coherency traffic
     alignas(kCacheLineSize) std::atomic<size_t> writeIdx = {0};
-    alignas(kCacheLineSize) size_t readIdxCache = 0;
     alignas(kCacheLineSize) std::atomic<size_t> readIdx = {0};
-    alignas(kCacheLineSize) size_t writeIdxCache = 0;
 
     size_t capacity;
     T *slots_;
 
 public:
-    RingBuffer(size_t capacity = 1000);
+    RingBuffer(size_t capacity = 10000);
 
     void enque(T t);
     T deque();

@@ -7,7 +7,7 @@
 #include "task.h"
 #include "priority_queue.h"
 #include "calender_queue.h"
-#include "ring_buffer.h"
+#include "ring_buffer_folly.cc"
 #include "filescheduler.h"
 #include "logger.h"
 
@@ -28,11 +28,11 @@ private:
     std::atomic<bool> stop_flag;
     std::chrono::milliseconds total_duration = std::chrono::milliseconds(0);
 
-    int current_stealable_task_count = 0;
+    std::atomic<int> in_process_steal_requests;
     std::atomic<int> submitted_request_count;
     std::atomic<int> completed_request_count;
-    std::unordered_map<int, RingBuffer<StealRequest>> submission_queues;
-    std::unordered_map<int, RingBuffer<Task*>> completion_queues;
+    std::unordered_map<int, ProducerConsumerQueue<StealRequest>> submission_queues;
+    std::unordered_map<int, ProducerConsumerQueue<Task*>> completion_queues;
     
 public:
     int id;
@@ -47,6 +47,8 @@ public:
     void setCoordinator(Coordinator* coordinator);
     void submitToSubmissionQueue(int task_count, Scheduler* scheduler);
     void submitToCompletionQueue(Task* task, Scheduler* scheduler);
+    void advanceCompletionQueue();
+    Task* getNextTask();
 
 private:
     void process_interactive_tasks();

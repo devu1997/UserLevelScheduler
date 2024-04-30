@@ -44,11 +44,8 @@ void RingBuffer<T>::enque(T t) {
     if (nextWriteIdx == capacity) {
         nextWriteIdx = 0;
     }
-    if (nextWriteIdx == readIdxCache) {
-        readIdxCache = readIdx.load(std::memory_order_acquire);
-        if (nextWriteIdx == readIdxCache) {
-            throw std::overflow_error("Buffer is full");
-        }
+    if (nextWriteIdx == readIdx.load(std::memory_order_acquire)) {
+        throw std::overflow_error("Buffer is full");
     }
     slots_[writeIdx_ + kPadding] = t;
     writeIdx.store(nextWriteIdx, std::memory_order_release);
@@ -57,30 +54,29 @@ void RingBuffer<T>::enque(T t) {
 template<class T>
 T RingBuffer<T>::deque() {
     auto const readIdx_ = readIdx.load(std::memory_order_relaxed);
-    if (writeIdx.load(std::memory_order_acquire) == readIdx_) {
+    if (readIdx_ == writeIdx.load(std::memory_order_acquire)) {
+        logger.error("Empty? %d", empty());
         throw std::underflow_error("Buffer is empty");
     }
-    T t = slots_[readIdx_ + kPadding];
     auto nextReadIdx = readIdx_ + 1;
     if (nextReadIdx == capacity) {
         nextReadIdx = 0;
     }
+    T t = slots_[readIdx_ + kPadding];
     readIdx.store(nextReadIdx, std::memory_order_release);
     return t;
 }
 
 template<class T>
 bool RingBuffer<T>::empty() {
-    auto const readIdx_ = readIdx.load(std::memory_order_relaxed);
-    if (writeIdxCache == readIdx_) {
-        writeIdxCache = writeIdx.load(std::memory_order_acquire);
-        if (writeIdxCache == readIdx_) {
-            return true;
-        }
-    }
-    return false;
+    return readIdx.load(std::memory_order_acquire) == writeIdx.load(std::memory_order_acquire);
 }
 
+// * If called by consumer, then true size may be more (because producer may
+//   be adding items concurrently).
+// * If called by producer, then true size may be less (because consumer may
+//   be removing items concurrently).
+// * It is undefined to call this from any other thread.
 template<class T>
 size_t RingBuffer<T>::size() {
     std::ptrdiff_t diff = writeIdx.load(std::memory_order_acquire) - readIdx.load(std::memory_order_acquire);

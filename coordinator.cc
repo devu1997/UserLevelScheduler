@@ -1,6 +1,7 @@
 #include <thread>
 #include <cstring>
 #include <cerrno>
+#include <memory>
 #include <cmath>
 #include <csignal>
 #include <cstdlib>
@@ -41,9 +42,10 @@ int Coordinator::stealTasks(Scheduler* scheduler) {
     Scheduler* max_tasks_scheduler;
     for (auto &curr_scheduler : schedulers) {
         if (curr_scheduler->id == scheduler->id) continue;
-        total_tasks = total_tasks + curr_scheduler->current_task_count;
-        if (max_tasks < curr_scheduler->current_task_count) {
-            max_tasks = curr_scheduler->current_task_count;
+        int current_task_count_ = curr_scheduler->current_task_count.load(std::memory_order_relaxed);
+        total_tasks = total_tasks + current_task_count_;
+        if (max_tasks < current_task_count_) {
+            max_tasks = current_task_count_;
             max_tasks_scheduler = curr_scheduler;
         }
     }
