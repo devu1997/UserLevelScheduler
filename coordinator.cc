@@ -64,7 +64,7 @@ void Coordinator::submit(Task* task) {
 void Coordinator::start() {
     #ifdef ENABLE_PINNING
     #ifdef __linux__
-    logger.info("Thread pinning enabled")
+    logger.info("Thread pinning enabled");
     #endif
     #endif
 

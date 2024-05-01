@@ -71,17 +71,3 @@ template<class T>
 bool RingBuffer<T>::empty() {
     return readIdx.load(std::memory_order_acquire) == writeIdx.load(std::memory_order_acquire);
 }
-
-// * If called by consumer, then true size may be more (because producer may
-//   be adding items concurrently).
-// * If called by producer, then true size may be less (because consumer may
-//   be removing items concurrently).
-// * It is undefined to call this from any other thread.
-template<class T>
-size_t RingBuffer<T>::size() {
-    std::ptrdiff_t diff = writeIdx.load(std::memory_order_acquire) - readIdx.load(std::memory_order_acquire);
-    if (diff < 0) {
-        diff += capacity;
-    }
-    return static_cast<size_t>(diff);
-}

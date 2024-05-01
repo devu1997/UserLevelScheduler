@@ -53,5 +53,4 @@ public:
     void enque(T t);
     T deque();
     bool empty();
-    size_t size();
 };

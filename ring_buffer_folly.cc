@@ -12,6 +12,8 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ * 
+ * Modified by Devika Sudheer
  */
 
 #pragma once
@@ -24,24 +26,20 @@
 #include <type_traits>
 #include <utility>
 
-/*
- * ProducerConsumerQueue is a one producer and one consumer queue
- * without locks.
- */
 
 #if defined(__arm__)
-#define FOLLY_ARM 1
+#define ARM 1
 #else
-#define FOLLY_ARM 0
+#define ARM 0
 #endif
 
 #if defined(__s390x__)
-#define FOLLY_S390X 1
+#define S390X 1
 #else
-#define FOLLY_S390X 0
+#define S390X 0
 #endif
 
-constexpr std::size_t hardware_destructive_interference_size = ((FOLLY_ARM == 1) || (FOLLY_S390X == 1)) ? 64 : 128;
+constexpr std::size_t hardware_destructive_interference_size = (ARM == 1 || S390X == 1) ? 64 : 128;
 
 template <class T>
 struct ProducerConsumerQueue {
@@ -50,11 +48,11 @@ struct ProducerConsumerQueue {
   using AtomicIndex = std::atomic<unsigned int>;
 
   char pad0_[hardware_destructive_interference_size];
-  const uint32_t size_;
-  T* const records_;
+  const uint32_t capacity;
+  T* const records;
 
-  alignas(hardware_destructive_interference_size) AtomicIndex readIndex_;
-  alignas(hardware_destructive_interference_size) AtomicIndex writeIndex_;
+  alignas(hardware_destructive_interference_size) AtomicIndex readIndex;
+  alignas(hardware_destructive_interference_size) AtomicIndex writeIndex;
 
   char pad1_[hardware_destructive_interference_size - sizeof(AtomicIndex)];
 
@@ -64,108 +62,56 @@ struct ProducerConsumerQueue {
   ProducerConsumerQueue(const ProducerConsumerQueue&) = delete;
   ProducerConsumerQueue& operator=(const ProducerConsumerQueue&) = delete;
 
-  // size must be >= 2.
-  //
+  // capacity must be >= 2.
   // Also, note that the number of usable slots in the queue at any
-  // given time is actually (size-1), so if you start with an empty queue,
-  // isFull() will return true after size-1 insertions.
-  explicit ProducerConsumerQueue(uint32_t size = 1000)
-      : size_(size),
-        records_(static_cast<T*>(std::malloc(sizeof(T) * size))),
-        readIndex_(0),
-        writeIndex_(0) {
-    assert(size >= 2);
-    if (!records_) {
+  // given time is actually (capacity-1), so if you start with an empty queue,
+  // full() will return true after capacity-1 insertions.
+  explicit ProducerConsumerQueue(uint32_t capacity = 1000)
+      : capacity(capacity),
+        records(static_cast<T*>(std::malloc(sizeof(T) * capacity))),
+        readIndex(0),
+        writeIndex(0) {
+    assert(capacity >= 2);
+    if (!records) {
       throw std::bad_alloc();
     }
   }
 
-  ~ProducerConsumerQueue() {
-    // We need to destruct anything that may still exist in our queue.
-    // (No real synchronization needed at destructor time: only one
-    // thread can be doing this.)
-    // if (!std::is_trivially_destructible<T>::value) {
-    //   size_t readIndex = readIndex_;
-    //   size_t endIndex = writeIndex_;
-    //   while (readIndex != endIndex) {
-    //     records_[readIndex].~T();
-    //     if (++readIndex == size_) {
-    //       readIndex = 0;
-    //     }
-    //   }
-    // }
-
-    // std::free(records_);
-  }
-
   bool enque(T t) {
-    auto const currentWrite = writeIndex_.load(std::memory_order_relaxed);
+    auto const currentWrite = writeIndex.load(std::memory_order_relaxed);
     auto nextRecord = currentWrite + 1;
-    if (nextRecord == size_) {
+    if (nextRecord == capacity) {
       nextRecord = 0;
     }
-    if (nextRecord != readIndex_.load(std::memory_order_acquire)) {
-      records_[currentWrite] = t;
-      writeIndex_.store(nextRecord, std::memory_order_release);
-      return true;
-    }
-
-    // queue is full
-    return false;
-  }
-
-  // pointer to the value at the front of the queue (for use in-place) or
-  // nullptr if empty.
-  T* frontPtr() {
-    auto const currentRead = readIndex_.load(std::memory_order_relaxed);
-    if (currentRead == writeIndex_.load(std::memory_order_acquire)) {
-      // queue is empty
-      return nullptr;
-    }
-    return &records_[currentRead];
-  }
-
-  // queue must not be empty
-  void popFront() {
-    auto const currentRead = readIndex_.load(std::memory_order_relaxed);
-    assert(currentRead != writeIndex_.load(std::memory_order_acquire));
-
-    auto nextRecord = currentRead + 1;
-    if (nextRecord == size_) {
-      nextRecord = 0;
-    }
-    // records_[currentRead].~T();
-    readIndex_.store(nextRecord, std::memory_order_release);
-  }
-
-  bool empty() const {
-    return readIndex_.load(std::memory_order_acquire) ==
-        writeIndex_.load(std::memory_order_acquire);
-  }
-
-  bool full() const {
-    auto nextRecord = writeIndex_.load(std::memory_order_acquire) + 1;
-    if (nextRecord == size_) {
-      nextRecord = 0;
-    }
-    if (nextRecord != readIndex_.load(std::memory_order_acquire)) {
-      return false;
-    }
-    // queue is full
+    assert(nextRecord != readIndex.load(std::memory_order_acquire));
+    records[currentWrite] = t;
+    writeIndex.store(nextRecord, std::memory_order_release);
     return true;
   }
 
-  // * If called by consumer, then true size may be more (because producer may
-  //   be adding items concurrently).
-  // * If called by producer, then true size may be less (because consumer may
-  //   be removing items concurrently).
-  // * It is undefined to call this from any other thread.
-  size_t size() const {
-    int ret = writeIndex_.load(std::memory_order_acquire) -
-        readIndex_.load(std::memory_order_acquire);
-    if (ret < 0) {
-      ret += size_;
+  T deque() {
+    auto const currentRead = readIndex.load(std::memory_order_relaxed);
+    assert(currentRead != writeIndex.load(std::memory_order_acquire));
+    auto nextRecord = currentRead + 1;
+    if (nextRecord == capacity) {
+      nextRecord = 0;
     }
-    return ret;
+    T t = records[currentRead];
+    readIndex.store(nextRecord, std::memory_order_release);
+    return t;
   }
+
+  bool empty() const {
+    return readIndex.load(std::memory_order_acquire) ==
+        writeIndex.load(std::memory_order_acquire);
+  }
+
+  bool full() const {
+    auto nextRecord = writeIndex.load(std::memory_order_acquire) + 1;
+    if (nextRecord == capacity) {
+      nextRecord = 0;
+    }
+    return nextRecord == readIndex.load(std::memory_order_acquire);
+  }
+
 };

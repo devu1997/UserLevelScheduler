@@ -90,11 +90,10 @@ void Scheduler::process_interactive_tasks() {
         for (auto &itr : submission_queues) {
             int scheduler_id = itr.first;
             while (!submission_queues[scheduler_id].empty()) {
-                StealRequest *ev = submission_queues[scheduler_id].frontPtr();
-                submission_queues[scheduler_id].popFront();
-                for (int i=0; i<current_task_count && i<ev->task_count; i++) {
+                StealRequest ev = submission_queues[scheduler_id].deque();
+                for (int i=0; i<current_task_count && i<ev.task_count; i++) {
                     Task* task = getNextTask();
-                    ev->scheduler->submitToCompletionQueue(task, this);
+                    ev.scheduler->submitToCompletionQueue(task, this);
                 }
                 submitted_request_count--;
                 advanceCompletionQueue();
@@ -107,9 +106,8 @@ void Scheduler::process_interactive_tasks() {
         for (auto &itr : completion_queues) {
             int scheduler_id = itr.first;
             while (!completion_queues[scheduler_id].empty()) {
-                Task** task = completion_queues[scheduler_id].frontPtr();
-                completion_queues[scheduler_id].popFront();
-                submit(*task);
+                Task* task = completion_queues[scheduler_id].deque();
+                submit(task);
                 completed_request_count--;
             }
         }
