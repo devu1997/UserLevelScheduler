@@ -31,14 +31,14 @@ private:
     std::atomic<int> in_process_steal_requests;
     std::atomic<int> submitted_request_count;
     std::atomic<int> completed_request_count;
-    std::unordered_map<int, ProducerConsumerQueue<StealRequest>> submission_queues;
-    std::unordered_map<int, ProducerConsumerQueue<Task*>> completion_queues;
+    std::vector<ProducerConsumerQueue<StealRequest>> submission_queues;
+    std::vector<ProducerConsumerQueue<Task*>> completion_queues;
     
 public:
     int id;
     std::atomic<int> current_task_count;
 
-    Scheduler(int id);
+    Scheduler(int id, int queue_size);
     ~Scheduler();
 
     void submit(Task* task);
@@ -47,7 +47,7 @@ public:
     void setCoordinator(Coordinator* coordinator);
     void submitToSubmissionQueue(int task_count, Scheduler* scheduler);
     void submitToCompletionQueue(Task* task, Scheduler* scheduler);
-    void advanceCompletionQueue();
+    void markStealRequestCompletion();
     Task* getNextTask();
 
 private:

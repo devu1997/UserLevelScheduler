@@ -10,7 +10,7 @@
 #include "filescheduler.h"
 
 
-#define MAX_STEAL_TASKS 10
+#define MAX_TASKS_TO_STEAL 10
 
 class Coordinator {
 private:

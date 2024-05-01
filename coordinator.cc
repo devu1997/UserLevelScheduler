@@ -8,23 +8,11 @@
 #include <execinfo.h>
 #include "coordinator.h"
 
-void signalHandler(int signal) {
-    logger.error("Error: Segmentation fault (signal %d)", signal);
-
-    // Print stack trace
-    constexpr int maxFrames = 64;
-    void* callstack[maxFrames];
-    int numFrames = backtrace(callstack, maxFrames);
-    backtrace_symbols_fd(callstack, numFrames, STDERR_FILENO);
-
-    // Terminate the program
-    std::exit(EXIT_FAILURE);
-}
 
 Coordinator::Coordinator() {
     int max_threads = std::thread::hardware_concurrency();
     for (int i = 0; i < max_threads; ++i) {
-        this->schedulers.push_back(new Scheduler(i));
+        this->schedulers.push_back(new Scheduler(i, max_threads));
     }
 }
 
@@ -49,7 +37,7 @@ int Coordinator::stealTasks(Scheduler* scheduler) {
             max_tasks_scheduler = curr_scheduler;
         }
     }
-    int stealable_task_count = std::min(MAX_STEAL_TASKS, max_tasks - (int)std::ceil(((total_tasks * 1.0) / schedulers.size())));
+    int stealable_task_count = std::min(MAX_TASKS_TO_STEAL, max_tasks - (int)std::ceil(((total_tasks * 1.0) / schedulers.size())));
     if (stealable_task_count > 0) {
         max_tasks_scheduler->submitToSubmissionQueue(stealable_task_count, scheduler);
     }
@@ -74,7 +62,6 @@ void Coordinator::start() {
     for (auto &scheduler : schedulers) {
         scheduler->setCoordinator(this);
         threads.emplace_back([&scheduler, core_to_run] {
-            std::signal(SIGSEGV, signalHandler);
             try {
                 // Set CPU affinity
                 #ifdef ENABLE_PINNING

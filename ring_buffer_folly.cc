@@ -47,14 +47,11 @@ struct ProducerConsumerQueue {
  private:
   using AtomicIndex = std::atomic<unsigned int>;
 
-  char pad0_[hardware_destructive_interference_size];
   const uint32_t capacity;
   T* const records;
 
   alignas(hardware_destructive_interference_size) AtomicIndex readIndex;
   alignas(hardware_destructive_interference_size) AtomicIndex writeIndex;
-
-  char pad1_[hardware_destructive_interference_size - sizeof(AtomicIndex)];
 
  public:
   typedef T value_type;

@@ -4,7 +4,7 @@
 #include "filetasks.h"
 
 
-Scheduler::Scheduler(int id) : id(id), stop_flag(false) {
+Scheduler::Scheduler(int id, int queue_size) : id(id), stop_flag(false), submission_queues(queue_size), completion_queues(queue_size) {
     current_task_count = 0;
     in_process_steal_requests = 0;
     submitted_request_count = 0;
@@ -66,7 +66,7 @@ void Scheduler::submitToCompletionQueue(Task* task, Scheduler* scheduler) {
     completed_request_count++;
 }
 
-void Scheduler::advanceCompletionQueue() {
+void Scheduler::markStealRequestCompletion() {
     in_process_steal_requests--;
 }
 
@@ -86,27 +86,25 @@ void Scheduler::process_interactive_tasks() {
     file_scheduler->process_completed();
 
     // Donate tasks to steal
-    if (submitted_request_count > 0) {
-        for (auto &itr : submission_queues) {
-            int scheduler_id = itr.first;
-            while (!submission_queues[scheduler_id].empty()) {
-                StealRequest ev = submission_queues[scheduler_id].deque();
+    if (submitted_request_count.load(std::memory_order_relaxed) > 0) {
+        for (auto &submission_queue : submission_queues) {
+            while (!submission_queue.empty()) {
+                StealRequest ev = submission_queue.deque();
                 for (int i=0; i<current_task_count && i<ev.task_count; i++) {
                     Task* task = getNextTask();
                     ev.scheduler->submitToCompletionQueue(task, this);
                 }
                 submitted_request_count--;
-                advanceCompletionQueue();
+                ev.scheduler->markStealRequestCompletion();
             }
         }
     }
 
     // Accept tasks donated to steal
-    if (completed_request_count > 0) {
-        for (auto &itr : completion_queues) {
-            int scheduler_id = itr.first;
-            while (!completion_queues[scheduler_id].empty()) {
-                Task* task = completion_queues[scheduler_id].deque();
+    if (completed_request_count.load(std::memory_order_relaxed) > 0) {
+        for (auto &completion_queue : completion_queues) {
+            while (!completion_queue.empty()) {
+                Task* task = completion_queue.deque();
                 submit(task);
                 completed_request_count--;
             }
@@ -115,7 +113,7 @@ void Scheduler::process_interactive_tasks() {
 
     // Request for tasks to steal
     if (interactive_task_queue.empty() && batch_task_queue.empty()) {
-        if (in_process_steal_requests > 0) return;
+        if (in_process_steal_requests > 0 || completed_request_count > 0) return;
         int ret = coordinator->stealTasks(this);
         if (ret > 0) {
             in_process_steal_requests++;
