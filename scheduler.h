@@ -46,6 +46,7 @@ public:
     void stop();
     void setCoordinator(Coordinator* coordinator);
     void submitToSubmissionQueue(int task_count, Scheduler* scheduler);
+    void submitToOwnerSubmissionQueue(int task_count, Scheduler* scheduler);
     void submitToCompletionQueue(Task* task, Scheduler* scheduler);
     void markStealRequestCompletion();
     Task* getNextTask();

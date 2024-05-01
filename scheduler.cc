@@ -59,6 +59,13 @@ void Scheduler::submit(Task* task) {
 void Scheduler::submitToSubmissionQueue(int task_count, Scheduler* scheduler) {
     submission_queues[scheduler->id].enque({task_count, scheduler});
     submitted_request_count++;
+    logger.info("Self balancing by moving %d tasks from scheduler %d to %d", task_count, id, scheduler->id);
+}
+
+void Scheduler::submitToOwnerSubmissionQueue(int task_count, Scheduler* scheduler) {
+    submission_queues[id].enque({task_count, scheduler});
+    submitted_request_count++;
+    logger.info("Periodic balancing by moving %d tasks from scheduler %d to %d", task_count, id, scheduler->id);
 }
 
 void Scheduler::submitToCompletionQueue(Task* task, Scheduler* scheduler) {
@@ -87,7 +94,8 @@ void Scheduler::process_interactive_tasks() {
 
     // Donate tasks to steal
     if (submitted_request_count.load(std::memory_order_relaxed) > 0) {
-        for (auto &submission_queue : submission_queues) {
+        for (size_t index = 0; index < submission_queues.size(); ++index) {
+            auto& submission_queue = submission_queues[index];
             while (!submission_queue.empty()) {
                 StealRequest ev = submission_queue.deque();
                 for (int i=0; i<current_task_count && i<ev.task_count; i++) {
@@ -95,7 +103,9 @@ void Scheduler::process_interactive_tasks() {
                     ev.scheduler->submitToCompletionQueue(task, this);
                 }
                 submitted_request_count--;
-                ev.scheduler->markStealRequestCompletion();
+                if (index != id) {
+                    ev.scheduler->markStealRequestCompletion();
+                }
             }
         }
     }

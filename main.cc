@@ -160,7 +160,7 @@ int main() {
       // task1_fork1 = task1->fork();
       // fwc_fork->setNextTasks({task1_fork1});
       std::vector<Task*> next_tasks;
-      for (int i=0; i<100; i++) {
+      for (int i=0; i<1000; i++) {
         Task* task1_fork2 = task1->fork();
         next_tasks.push_back(task1_fork2);
       }

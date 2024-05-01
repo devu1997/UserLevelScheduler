@@ -24,6 +24,7 @@ public:
 
     void submit(Task* task);
     int stealTasks(Scheduler* scheduler);
+    void balanceLoad();
     void start();
     void stop();
 };
