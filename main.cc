@@ -6,7 +6,7 @@
 #include "filetasks.cc"
 #include "priority_queue.cc"
 #include "calender_queue.cc"
-#include "ring_buffer.cc"
+#include "producer_consumer_queue.cc"
 #include "coordinator.cc"
 #include "scheduler.cc"
 #include "filescheduler.cc"
