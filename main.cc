@@ -1,4 +1,8 @@
 #include <iostream>
+#include <fcntl.h>
+#include <thread>
+#include <chrono>
+#include <csignal>
 #include "logger.cc"
 #include "history.cc"
 #include "task.cc"
@@ -10,9 +14,6 @@
 #include "coordinator.cc"
 #include "scheduler.cc"
 #include "filescheduler.cc"
-#include <fcntl.h>
-#include <thread>
-#include <chrono>
 
 int task_counter = 0;
 
@@ -77,10 +78,11 @@ struct FileOpenTaskInputExtention : public FileOpenTaskInput {
   }
 };
 
+// One chain takes ~800ms
 Task* generateCpuTaskChain() {
     Task* task = new CpuTask(
       [](void*) -> void* { 
-          generatePrimes(1000000);
+          generatePrimes(200500);
           return nullptr;
       }
     );
@@ -94,10 +96,10 @@ Task* generateCpuTaskChain() {
     return start_task;
 }
 
+// One chain takes ~600ms
 Task* generateIoTaskChain() {
-    static int file_no = 0;
-    std::string read_file_path = "/home/users/devika/os/UserLevelScheduler/logs/log" + std::to_string(file_no%10) + ".txt";
-    std::string write_file_path = "/home/users/devika/os/UserLevelScheduler/logs/out" + std::to_string(file_no%10) + ".txt";
+    std::string read_file_path = "/home/users/devika/os/UserLevelScheduler/logs/log.txt";
+    std::string write_file_path = "/home/users/devika/os/UserLevelScheduler/logs/out.txt";
     Task* fro = new FileOpenTask(
         [](void* input, void* output) -> void* {
             FileOpenTaskOutput* fo_output = static_cast<FileOpenTaskOutput*>(output);
@@ -149,25 +151,32 @@ Task* generateIoTaskChain() {
         fwc = fwc_fork;
       }
     }
-    file_no++;
     return start_task;
 }
 
+Coordinator coordinator;
+
+void sigint_handler(int signal) {
+    coordinator.stop();
+    std::exit(EXIT_SUCCESS); 
+}
+
 int main() {
-    Coordinator coordinator;
 
     /* IO Intensive task chain */
-    for (int i=0; i<100; i++) {
+    for (int i=0; i<1; i++) {
       Task *task = generateIoTaskChain();
       coordinator.submit(task);
     }
     
     /* CPU Intensive task chain */
-    for (int i=0; i<100; i++) {
+    for (int i=0; i<1; i++) {
       Task *task = generateCpuTaskChain();
       coordinator.submit(task);
     }
-    
+
+    std::signal(SIGINT, sigint_handler);
+
     coordinator.start();
 
     return 0;

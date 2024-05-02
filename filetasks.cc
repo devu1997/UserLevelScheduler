@@ -103,8 +103,8 @@ void* FileWriteTask::process() {
     async_task->setForwardResult(this->forward_result);
     async_task->setNextTasks(this->next_tasks);
     async_task->setExecutionMode(TaskExecutionMode::ASYNC_FILE);
-    this->next_tasks = {async_task};
-    this->forward_result = true;
+    this->setNextTasks({async_task});
+    this->setForwardResult(true);
     logger.trace("Start writing file");
     return input;
 }

@@ -17,13 +17,15 @@ enum class TaskExecutionMode {
 class Task {
 private:
     static int last_task_id;
+    bool inherit_niceness = true;
+    bool inherit_result = true;
 
 public:
     int id;
     void* input;
     std::vector<Task*> next_tasks;
-    History history;
     bool forward_result = true;
+    History history;
     TaskExecutionMode exec_mode = TaskExecutionMode::SYNC;
     int niceness = DEFAULT_NICENESS;
     long ticks = 0;
@@ -42,6 +44,7 @@ public:
     void setNiceness(int niceness);
     void setTicks(long ticks, long ftick, long ltick);
     void setExecutionMode(TaskExecutionMode exec_mode);
+    void inherit_from_parent(Task* parent_task, void* parent_result);
     void copy(Task* task);
 
     int getInteractivityPenality();

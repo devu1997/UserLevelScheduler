@@ -41,12 +41,26 @@ void Task::setNiceness(int niceness) {
         throw std::runtime_error(error_msg.str()); 
     }
     this->niceness = niceness;
+    this->inherit_niceness = false;
 }
 
 void Task::setTicks(long ticks, long ftick, long ltick) {
     this->ticks = ticks;
     this->ftick = ftick;
     this->ltick = ltick;
+}
+
+void Task::inherit_from_parent(Task* parent_task, void* parent_result) {
+    if (parent_task->forward_result) {
+        this->input = parent_result;
+    }
+    this->history = parent_task->history;
+    if (this->inherit_niceness) {
+        this->niceness = parent_task->niceness;
+    }
+    this->ticks = parent_task->ticks;
+    this->ftick = parent_task->ftick;
+    this->ltick = parent_task->ltick;
 }
 
 void Task::copy(Task* task) {

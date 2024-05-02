@@ -1,5 +1,6 @@
 #include <thread>
 #include <chrono>
+#include <fstream>
 #include "scheduler.h"
 #include "filetasks.h"
 
@@ -144,14 +145,17 @@ void Scheduler::process_interactive_tasks() {
     addToCurrentTicks(duration);
     task->updateCpuUtilization(getCurrentTicks(), true);
 
+    #ifdef ENABLE_METRICS
+    if (dynamic_cast<CpuTask*>(task)) {
+        cpu_task_runtimes.push_back({end, duration.count()});
+    } else {
+        io_task_runtimes.push_back({end, duration.count()});
+    }
+    #endif
+
     if (task->next_tasks.size() > 0) {
         for (Task* next_task : task->next_tasks) {
-            if (task->forward_result) {
-                next_task->setInput(result);
-            }
-            next_task->setHistory(task->history);
-            next_task->setNiceness(task->niceness); // TODO: Have extra field to decide when to propogate niceness
-            next_task->setTicks(task->ticks, task->ftick, task->ltick);
+            next_task->inherit_from_parent(task, result);
             submit(next_task);
         }
     } else {
@@ -169,4 +173,23 @@ void Scheduler::start() {
 
 void Scheduler::stop() {
     stop_flag = true;
+
+    #ifdef ENABLE_METRICS
+    logger.info("Running metrics collection in scheduler %d", id);
+    std::ofstream cpu_out_file;
+    cpu_out_file.open("./results/latencies_" + std::to_string(id) + "_cpu.csv"); 
+    for (auto &itr : cpu_task_runtimes) {
+        cpu_out_file << (std::chrono::duration_cast<std::chrono::milliseconds>(itr.first - steady_now)).count() << " " << itr.second << ",";
+    }
+    cpu_out_file << std::endl;
+    cpu_out_file.close();
+
+    std::ofstream io_out_file;
+    io_out_file.open("./results/latencies_" + std::to_string(id) + "_io.csv"); 
+    for (auto &itr : io_task_runtimes) {
+        io_out_file << (std::chrono::duration_cast<std::chrono::milliseconds>(itr.first - steady_now)).count() << " " << itr.second << ",";
+    }
+    io_out_file << std::endl;
+    io_out_file.close();
+    #endif
 }
