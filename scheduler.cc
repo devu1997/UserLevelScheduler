@@ -22,7 +22,7 @@ void Scheduler::setCoordinator(Coordinator* coordinator) {
     this->coordinator = coordinator;
 }
 
-double Scheduler::getCurrentTicks() {
+long long Scheduler::getCurrentTicks() {
     return (total_duration.count() * hz) / 1000;
 }
 
@@ -59,13 +59,13 @@ void Scheduler::submit(Task* task) {
 void Scheduler::submitToSubmissionQueue(int task_count, Scheduler* scheduler) {
     submission_queues[scheduler->id].enque({task_count, scheduler});
     submitted_request_count++;
-    logger.info("Self balancing by moving %d tasks from scheduler %d to %d", task_count, id, scheduler->id);
+    logger.trace("Self balancing by moving %d tasks from scheduler %d to %d", task_count, id, scheduler->id);
 }
 
 void Scheduler::submitToOwnerSubmissionQueue(int task_count, Scheduler* scheduler) {
     submission_queues[id].enque({task_count, scheduler});
     submitted_request_count++;
-    logger.info("Periodic balancing by moving %d tasks from scheduler %d to %d", task_count, id, scheduler->id);
+    logger.trace("Periodic balancing by moving %d tasks from scheduler %d to %d", task_count, id, scheduler->id);
 }
 
 void Scheduler::submitToCompletionQueue(Task* task, Scheduler* scheduler) {
@@ -134,7 +134,7 @@ void Scheduler::process_interactive_tasks() {
     // Run tasks from task queue;
     Task* task = getNextTask();
 
-    logger.info("Scheduler %d running task %d", id, task->id);
+    logger.trace("Scheduler %d running task %d", id, task->id);
     task->updateCpuUtilization(getCurrentTicks(), false);
     auto start = std::chrono::steady_clock::now();
     void* result = task->process();
@@ -143,7 +143,6 @@ void Scheduler::process_interactive_tasks() {
     task->history.addEvent({EventType::CPU, duration});
     addToCurrentTicks(duration);
     task->updateCpuUtilization(getCurrentTicks(), true);
-
 
     if (task->next_tasks.size() > 0) {
         for (Task* next_task : task->next_tasks) {
@@ -155,6 +154,8 @@ void Scheduler::process_interactive_tasks() {
             next_task->setTicks(task->ticks, task->ftick, task->ltick);
             submit(next_task);
         }
+    } else {
+        logger.info("Task chain completed with id %d in scheduler %d in runtime %ld ms", task->id, id, task->ticks / hz);
     }
     delete task;
 }

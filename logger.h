@@ -2,7 +2,8 @@
 
 #include <iostream>
 #include <string>
-#include <ctime>
+#include <chrono>
+#include <cstring>
 #include <cstdarg>
 
 

@@ -77,37 +77,43 @@ struct FileOpenTaskInputExtention : public FileOpenTaskInput {
   }
 };
 
-int main() {
-    Coordinator coordinator;
+Task* generateCpuTaskChain() {
+    Task* task = new CpuTask(
+      [](void*) -> void* { 
+          generatePrimes(1000000);
+          return nullptr;
+      }
+    );
+    task->setForwardResult(false);
+    Task* start_task = task;
+    for (int i=0; i<19; i++) {
+        Task* task_fork = task->fork();
+        task->setNextTasks({task_fork});
+        task = task_fork;
+    }
+    return start_task;
+}
 
-    Task* task1 = new CpuTask(
-        [](void*) -> void* { 
-            std::cout << "Running task " << ++task_counter << "\n";
-            generatePrimes(1000000);
-            return nullptr;
-        }
-      );
-    task1->setForwardResult(false);
-
-    FileOpenTask* fro = new FileOpenTask(
+Task* generateIoTaskChain() {
+    static int file_no = 0;
+    std::string read_file_path = "/home/users/devika/os/UserLevelScheduler/logs/log" + std::to_string(file_no%10) + ".txt";
+    std::string write_file_path = "/home/users/devika/os/UserLevelScheduler/logs/out" + std::to_string(file_no%10) + ".txt";
+    Task* fro = new FileOpenTask(
         [](void* input, void* output) -> void* {
             FileOpenTaskOutput* fo_output = static_cast<FileOpenTaskOutput*>(output);
             return generateFileReadInput(fo_output->file_fd);
         }
     );
-    fro->setInput(new FileOpenTaskInput({"/home/users/devika/os/UserLevelScheduler/log.txt", O_RDONLY | O_DIRECT}));
-
-    FileReadTask* frr = new FileReadTask();
-
-    FileCloseTask* frc = new FileCloseTask(
-      [](void* in) -> void* {
+    fro->setInput(new FileOpenTaskInput({read_file_path.c_str(), O_RDONLY | O_DIRECT}));
+    Task* frr = new FileReadTask();
+    Task* frc = new FileCloseTask(
+      [write_file_path](void* in) -> void* {
         FileTaskInput* ft_input = static_cast<FileTaskInput*>(in);
-        FileOpenTaskInputExtention* out = new FileOpenTaskInputExtention("/home/users/devika/os/UserLevelScheduler/logh.txt", O_RDWR | O_CREAT | O_TRUNC | O_DIRECT, 0644 , ft_input);
+        FileOpenTaskInputExtention* out = new FileOpenTaskInputExtention(write_file_path.c_str(), O_RDWR | O_CREAT | O_TRUNC | O_DIRECT, 0644 , ft_input);
         return out;
       }
     );
-  
-    FileOpenTask* fwo = new FileOpenTask(
+    Task* fwo = new FileOpenTask(
       [](void* in, void* out) -> void* {
         FileOpenTaskInputExtention* fo_in = static_cast<FileOpenTaskInputExtention*>(in);
         FileOpenTaskOutput* fo_out = static_cast<FileOpenTaskOutput*>(out);
@@ -115,60 +121,53 @@ int main() {
         return fo_in->ft_input;
       }
     );
-    FileWriteTask* fwr = new FileWriteTask();
-    FileCloseTask* fwc = new FileCloseTask();
+    Task* fww = new FileWriteTask();
+    Task* fwc = new FileCloseTask();
+    fwc->setForwardResult(false);
+
+    Task* start_task = fro;
+    for (int i=0; i<10; i++) {
+      fro->setNextTasks({frr});
+      frr->setNextTasks({frc});
+      frc->setNextTasks({fwo});
+      fwo->setNextTasks({fww});
+      fww->setNextTasks({fwc});
+
+      if (i < 9) {
+        Task* fro_fork = fro->fork();
+        Task* frr_fork = frr->fork();
+        Task* frc_fork = frc->fork();
+        Task* fwo_fork = fwo->fork();
+        Task* fww_fork = fww->fork();
+        Task* fwc_fork = fwc->fork();
+        fwc->setNextTasks({fro_fork});
+        fro = fro_fork;
+        frr = frr_fork;
+        frc = frc_fork;
+        fwo = fwo_fork;
+        fww = fww_fork;
+        fwc = fwc_fork;
+      }
+    }
+    file_no++;
+    return start_task;
+}
+
+int main() {
+    Coordinator coordinator;
 
     /* IO Intensive task chain */
-
-    Task* start_io = task1->fork();
-    Task* task1_fork = start_io;
     for (int i=0; i<100; i++) {
-      Task* fro_fork = fro->fork();
-      Task* frr_fork = frr->fork();
-      Task* frc_fork = frc->fork();
-      Task* fwo_fork = fwo->fork();
-      Task* fwr_fork = fwr->fork();
-      Task* fwc_fork = fwc->fork();
-
-      task1_fork->setNextTasks({fro_fork});
-      fro_fork->setNextTasks({frr_fork});
-      frr_fork->setNextTasks({frc_fork});
-      frc_fork->setNextTasks({fwo_fork});
-      fwo_fork->setNextTasks({fwr_fork});
-      fwr_fork->setNextTasks({fwc_fork});
-      task1_fork = task1->fork();
-      fwc_fork->setNextTasks({task1_fork});
+      Task *task = generateIoTaskChain();
+      coordinator.submit(task);
     }
     
     /* CPU Intensive task chain */
-
-    Task* start_cpu = task1->fork();
-    Task* task1_fork1 = start_cpu;
-    // for (int i=0; i<2; i++) {
-      // Task* fro_fork = fro->fork();
-      // Task* frr_fork = frr->fork();
-      // Task* frc_fork = frc->fork();
-      // Task* fwo_fork = fwo->fork();
-      // Task* fwr_fork = fwr->fork();
-      // Task* fwc_fork = fwc->fork();
-      // task1_fork->setNextTasks({fro_fork});
-      // fro_fork->setNextTasks({frr_fork});
-      // frr_fork->setNextTasks({frc_fork});
-      // frc_fork->setNextTasks({fwo_fork});
-      // fwo_fork->setNextTasks({fwr_fork});
-      // fwr_fork->setNextTasks({fwc_fork});
-      // task1_fork1 = task1->fork();
-      // fwc_fork->setNextTasks({task1_fork1});
-      std::vector<Task*> next_tasks;
-      for (int i=0; i<1000; i++) {
-        Task* task1_fork2 = task1->fork();
-        next_tasks.push_back(task1_fork2);
-      }
-      task1_fork1->setNextTasks(next_tasks);
-    // }
+    for (int i=0; i<100; i++) {
+      Task *task = generateCpuTaskChain();
+      coordinator.submit(task);
+    }
     
-    // coordinator.submit(start_io);
-    coordinator.submit(start_cpu);
     coordinator.start();
 
     return 0;

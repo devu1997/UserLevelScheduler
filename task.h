@@ -46,7 +46,7 @@ public:
 
     int getInteractivityPenality();
     int getPriority();
-    void updateCpuUtilization(double duration, bool run);
+    void updateCpuUtilization(long long duration, bool run);
 
     static int generate_task_id();
 };

@@ -42,9 +42,9 @@ FileOpenTask::FileOpenTask(std::function<void*(void*, void*)> func) {
 
 void* FileOpenTask::process() {
     FileOpenTaskInput* fo_input = static_cast<FileOpenTaskInput*>(input);
-    int file_fd = open(fo_input->file_path, fo_input->oflag, fo_input->mode);
+    int file_fd = open(fo_input->file_path.c_str(), fo_input->oflag, fo_input->mode);
     if (file_fd < 0) {
-        throw std::runtime_error(std::string("Error: Unable to open file: ") + std::strerror(errno));
+        throw std::runtime_error(std::string("Error: Unable to open file: ") + fo_input->file_path + std::strerror(errno));
     }
     FileOpenTaskOutput* fo_output = new FileOpenTaskOutput({file_fd});
     logger.trace("Opened file: %d", file_fd);

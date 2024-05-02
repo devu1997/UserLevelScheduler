@@ -55,7 +55,7 @@ public:
 /* File open */
 
 struct FileOpenTaskInput {
-    const char* file_path;
+    std::string file_path;
     int oflag;
     mode_t mode;
 };

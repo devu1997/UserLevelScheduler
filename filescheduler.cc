@@ -4,7 +4,7 @@
 #include "filescheduler.h"
 
 
-#define QUEUE_DEPTH 64
+#define QUEUE_DEPTH 128
 
 FileScheduler::FileScheduler() {
     int ret = io_uring_queue_init(QUEUE_DEPTH, &ring, 0);

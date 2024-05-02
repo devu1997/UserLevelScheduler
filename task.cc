@@ -6,6 +6,10 @@
 
 int Task::last_task_id = 0;
 
+int Task::generate_task_id() {
+    return ++last_task_id;
+}
+
 Task::Task() {
     this->id = Task::generate_task_id();
 }
@@ -69,7 +73,7 @@ int Task::getInteractivityPenality() {
     return penality;
 }
 
-void Task::updateCpuUtilization(double total_ticks, bool run) {
+void Task::updateCpuUtilization(long long total_ticks, bool run) {
     long t = total_ticks;
     logger.trace("Before ticks: %d task_ticks: %d ftick: %d ltick: %d", t, ticks, ftick, ltick);
     if ((u_int)(t - ltick) >= SCHED_TICK_TARG) {
@@ -93,7 +97,7 @@ int Task::getPriority() {
         priority = PRI_MIN_INTERACT;
         priority += (PRI_MAX_INTERACT - PRI_MIN_INTERACT + 1) * score / SCHED_INTERACT_THRESH;
         if (priority < PRI_MIN_INTERACT || priority > PRI_MAX_INTERACT) {
-            throw std::runtime_error("Error: Interactive priority out of range");
+            throw std::runtime_error(std::string("Error: Interactive priority out of range") + std::to_string(priority));
         }
     } else {
         priority = SCHED_PRI_MIN;
@@ -101,13 +105,9 @@ int Task::getPriority() {
             priority += std::min((int) SCHED_PRI_TICKS(ticks, ltick, ftick), SCHED_PRI_RANGE - 1);
             priority += niceness;
             if (priority < PRI_MIN_BATCH || priority > PRI_MAX_BATCH) {
-                throw std::runtime_error("Error: Batch priority out of range");
+                throw std::runtime_error(std::string("Error: Batch priority out of range") + std::to_string(priority));
             }
         }
     }
     return priority;
-}
-
-int Task::generate_task_id() {
-    return ++last_task_id;
 }

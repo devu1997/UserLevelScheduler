@@ -53,6 +53,6 @@ public:
 
 private:
     void process_interactive_tasks();
-    double getCurrentTicks();
+    long long getCurrentTicks();
     void addToCurrentTicks(std::chrono::milliseconds duration);
 };

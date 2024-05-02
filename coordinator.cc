@@ -43,9 +43,9 @@ int Coordinator::stealTasks(Scheduler* recipient_scheduler) {
     int curr_donated_tasks = std::min(max_acceptable_donations, doner_current_task_count - average_tasks_ceil);
     curr_donated_tasks = std::min(curr_donated_tasks, MAX_TASKS_TO_STEAL);
 
-    logger.trace("Self balancing total_tasks: %d, average_tasks_ceil: %d, average_tasks_floor: %d, curr_donated_tasks: %d", total_tasks, average_tasks_ceil, average_tasks_floor, curr_donated_tasks);
     if (curr_donated_tasks > 0) {
         doner_scheduler->submitToSubmissionQueue(curr_donated_tasks, recipient_scheduler);
+        logger.trace("Self balancing total_tasks: %d, average_tasks_ceil: %d, average_tasks_floor: %d, curr_donated_tasks: %d", total_tasks, average_tasks_ceil, average_tasks_floor, curr_donated_tasks);
     }
     return curr_donated_tasks;
 }

@@ -30,15 +30,31 @@ void Logger::error(const char* format, ...) {
 }
 
 void Logger::log(const char* levelString, const char* format, va_list args) {
-    // Get current date and time
-    std::time_t now = std::time(nullptr);
-    std::tm* localTime = std::localtime(&now);
+    // Get current time including milliseconds
+    auto now = std::chrono::system_clock::now();
+    auto now_ms = std::chrono::time_point_cast<std::chrono::milliseconds>(now);
+    auto value = now_ms.time_since_epoch();
+    auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(value).count();
 
-    // Format date and time
+    // Convert milliseconds to seconds and milliseconds
+    auto seconds = millis / 1000;
+    auto milliseconds = millis % 1000;
+
+    // Get local time
+    std::time_t now_time = std::chrono::system_clock::to_time_t(now);
+    std::tm* localTime = std::localtime(&now_time);
+
+    // Format date and time with milliseconds
     char timeBuffer[80];
-    std::strftime(timeBuffer, 80, "[%Y-%m-%d %H:%M:%S] ", localTime);
+    std::strftime(timeBuffer, sizeof(timeBuffer), "[%Y-%m-%d %H:%M:%S:", localTime);
 
-    // Write date and time to output stream
+    // Append milliseconds to the formatted time
+    char milliBuffer[4]; // Buffer for milliseconds
+    std::sprintf(milliBuffer, "%03d", static_cast<int>(milliseconds));
+    std::strcat(timeBuffer, milliBuffer);
+    std::strcat(timeBuffer, "] "); // Add closing bracket and space
+
+    // Write date and time with milliseconds to output stream
     outputStream << timeBuffer;
 
     // Write log level to output stream
