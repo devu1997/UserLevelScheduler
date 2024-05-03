@@ -138,6 +138,9 @@ void Scheduler::process_interactive_tasks() {
     logger.trace("Scheduler %d running task %d", id, task->id);
     task->updateCpuUtilization(getCurrentTicks(), false);
     auto start = std::chrono::steady_clock::now();
+    #ifdef ENABLE_INTERACTIVITY_METRICS
+    penalities[task->group].push_back({start, task->getInteractivityPenality()});
+    #endif
     void* result = task->process();
     auto end = std::chrono::steady_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
@@ -147,6 +150,9 @@ void Scheduler::process_interactive_tasks() {
 
     #ifdef ENABLE_METRICS
     runtimes[task->group].push_back({end, duration.count()});
+    #endif
+    #ifdef ENABLE_LOAD_BALANCE_METRICS
+    task_queue_sizes.push_back({end, current_task_count});
     #endif
 
     if (task->next_tasks.size() > 0) {
@@ -182,5 +188,28 @@ void Scheduler::stop() {
         out_file << std::endl;
         out_file.close();
     }
+    #endif
+    #ifdef ENABLE_INTERACTIVITY_METRICS
+    logger.info("Running interactive metrics collection in scheduler %d", id);
+    for (auto &group_penality_pair : penalities) {
+        std::string group = group_penality_pair.first;
+        std::ofstream out_file;
+        out_file.open("./results/penalities_" + std::to_string(id) + "_" + group + ".csv"); 
+        for (auto &itr : group_penality_pair.second) {
+            out_file << (std::chrono::duration_cast<std::chrono::milliseconds>(itr.first - steady_now)).count() << " " << itr.second << ",";
+        }
+        out_file << std::endl;
+        out_file.close();
+    }
+    #endif
+    #ifdef ENABLE_LOAD_BALANCE_METRICS
+    logger.info("Running load balance metrics collection in scheduler %d", id);
+    std::ofstream out_file;
+    out_file.open("./results/queue_sizes_" + std::to_string(id) + ".csv"); 
+    for (auto &itr : task_queue_sizes) {
+        out_file << (std::chrono::duration_cast<std::chrono::milliseconds>(itr.first - steady_now)).count() << " " << itr.second << ",";
+    }
+    out_file << std::endl;
+    out_file.close();
     #endif
 }

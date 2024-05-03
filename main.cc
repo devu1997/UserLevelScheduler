@@ -277,6 +277,27 @@ void multipleSchedulerMultiHighLowPriorityIoTasks() {
     }
 }
 
+void loadBalanceCpuTasks() {
+    for (int i=0; i<256; i++) {
+        Task *task = generateCpuTaskChain();
+        task->setGroup("load-balance-cpu");
+        coordinator.submit(task);
+    }
+}
+
+void interactivityMultipleSchedulerMultiIoCpuTasks() {
+    for (int i=0; i<10; i++) {
+        Task *task = generateIoTaskChain();
+        task->setGroup("multi-sch-io-" + std::to_string(i));
+        coordinator.submit(task);
+    }
+    for (int i=0; i<1; i++) {
+        Task *task = generateCpuTaskChain();
+        task->setGroup("multi-sch-cpu-" + std::to_string(i));
+        coordinator.submit(task);
+    }
+}
+
 int main() {
     // singleIoCpuTasks();
     // singleHighLowPriorityIoTasks();
@@ -289,6 +310,10 @@ int main() {
     // multipleSchedulerMultiIoCpuTasks();
     // multipleSchedulerMultiHighLowPriorityCpuTasks();
     // multipleSchedulerMultiHighLowPriorityIoTasks();
+
+    // loadBalanceCpuTasks();
+
+    interactivityMultipleSchedulerMultiIoCpuTasks();
 
     std::signal(SIGINT, sigint_handler);
     coordinator.start();

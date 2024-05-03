@@ -78,15 +78,12 @@ int Task::getInteractivityPenality() {
     if (history.sleep_time == std::chrono::milliseconds::zero() && history.run_time == std::chrono::milliseconds::zero()) {
         return SCHED_INTERACT_HALF; // Initially set the task as batch so that non-interactive tasks will not starve interactive tasks
     }
-    int penality = 0;
     if (history.sleep_time > history.run_time) {
-        penality = (SCHED_INTERACT_HALF * history.run_time) / history.sleep_time;
+        return (SCHED_INTERACT_HALF * history.run_time) / history.sleep_time;
     } else if (history.sleep_time < history.run_time) {
-        penality = SCHED_INTERACT_HALF + ((SCHED_INTERACT_HALF * history.sleep_time) / history.run_time);
-    } else {
-        return SCHED_INTERACT_HALF;
+        return (2 * SCHED_INTERACT_HALF) - ((SCHED_INTERACT_HALF * history.sleep_time) / history.run_time);
     }
-    return penality;
+    return SCHED_INTERACT_HALF;
 }
 
 void Task::updateCpuUtilization(long long total_ticks, bool run) {

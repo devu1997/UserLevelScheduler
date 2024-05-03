@@ -34,9 +34,17 @@ private:
     std::vector<ProducerConsumerQueue<StealRequest>> submission_queues;
     std::vector<ProducerConsumerQueue<Task*>> completion_queues;
 
-    #ifdef ENABLE_METRICS
+    #if defined(ENABLE_METRICS) || defined(ENABLE_INTERACTIVITY_METRICS) || defined(ENABLE_LOAD_BALANCE_METRICS)
     std::chrono::steady_clock::time_point steady_now = std::chrono::steady_clock::now();
+    #endif
+    #ifdef ENABLE_METRICS
     std::unordered_map<std::string, std::vector<std::pair<std::chrono::steady_clock::time_point, double>>> runtimes;
+    #endif
+    #ifdef ENABLE_INTERACTIVITY_METRICS
+    std::unordered_map<std::string, std::vector<std::pair<std::chrono::steady_clock::time_point, int>>> penalities;
+    #endif
+    #ifdef ENABLE_LOAD_BALANCE_METRICS
+    std::vector<std::pair<std::chrono::steady_clock::time_point, int>> task_queue_sizes;
     #endif
     
 public:

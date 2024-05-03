@@ -5,6 +5,7 @@
 #include <chrono>
 #include <random>
 #include <cmath>
+#include <fstream>
 #include "coordinator.h"
 
 
@@ -29,8 +30,8 @@ int Coordinator::stealTasks(Scheduler* recipient_scheduler) {
     int doner_current_task_count = 0;
     Scheduler* doner_scheduler;
     for (auto &scheduler : schedulers) {
-        if (scheduler->id == recipient_scheduler->id) continue;
         int current_task_count = scheduler->current_task_count;
+        if (scheduler->id == recipient_scheduler->id) continue;
         total_tasks = total_tasks + current_task_count;
         if (doner_current_task_count < current_task_count) {
             doner_current_task_count = current_task_count;
@@ -54,7 +55,8 @@ int Coordinator::stealTasks(Scheduler* recipient_scheduler) {
 void Coordinator::balanceLoad() {
     int total_tasks = 0;
     for (auto &scheduler : schedulers) {
-        total_tasks += scheduler->current_task_count;
+        int current_task_count = scheduler->current_task_count;
+        total_tasks += current_task_count;
     }
     int average_tasks_floor = total_tasks / schedulers.size();
     int average_tasks_ceil = std::ceil(((total_tasks * 1.0) / schedulers.size()));
@@ -97,7 +99,9 @@ void Coordinator::balanceLoad() {
 
 void Coordinator::submit(Task* task) {
     schedulers[next_scheduler_id]->submit(task);
+    #ifndef ENABLE_LOAD_BALANCE_METRICS
     next_scheduler_id = (next_scheduler_id + 1) % schedulers.size();
+    #endif
 }
 
 void Coordinator::start() {
@@ -153,6 +157,7 @@ void Coordinator::start() {
             logger.error("Load balancing deamon caught unknown exception");
         }
     });
+
     for (std::thread& thread : threads) {
         thread.join();
     }
