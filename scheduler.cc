@@ -134,7 +134,6 @@ void Scheduler::process_interactive_tasks() {
 
     // Run tasks from task queue;
     Task* task = getNextTask();
-
     logger.trace("Scheduler %d running task %d", id, task->id);
     task->updateCpuUtilization(getCurrentTicks(), false);
     auto start = std::chrono::steady_clock::now();
@@ -147,7 +146,6 @@ void Scheduler::process_interactive_tasks() {
     task->history.addEvent({EventType::CPU, duration});
     addToCurrentTicks(duration);
     task->updateCpuUtilization(getCurrentTicks(), true);
-
     #ifdef ENABLE_METRICS
     runtimes[task->group].push_back({end, duration.count()});
     #endif
