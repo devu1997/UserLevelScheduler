@@ -33,7 +33,7 @@ void Scheduler::addToCurrentTicks(std::chrono::milliseconds duration) {
 
 void Scheduler::submit(Task* task) {
     int priority = task->getPriority();
-    logger.trace("Interactive Score: %d Run time: %d Sleep time: %d", task->getPriority(), task->history.run_time.count(), task->history.sleep_time.count());
+    logger.trace("Group %s has Interactive Score: %d Run time: %d Sleep time: %d", task->group.c_str(), task->getPriority(), task->history.run_time.count(), task->history.sleep_time.count());
     switch (task->exec_mode) {
         case TaskExecutionMode::SYNC:
             if (priority < CALENDERQ_MIN_PRIORITY) {
@@ -146,11 +146,7 @@ void Scheduler::process_interactive_tasks() {
     task->updateCpuUtilization(getCurrentTicks(), true);
 
     #ifdef ENABLE_METRICS
-    if (dynamic_cast<CpuTask*>(task)) {
-        cpu_task_runtimes.push_back({end, duration.count()});
-    } else {
-        io_task_runtimes.push_back({end, duration.count()});
-    }
+    runtimes[task->group].push_back({end, duration.count()});
     #endif
 
     if (task->next_tasks.size() > 0) {
@@ -159,7 +155,7 @@ void Scheduler::process_interactive_tasks() {
             submit(next_task);
         }
     } else {
-        logger.info("Task chain completed with id %d in scheduler %d in runtime %ld ms", task->id, id, task->ticks / hz);
+        logger.info("Task chain of group %s completed with id %d in scheduler %d in runtime %ld ms", task->group.c_str(), task->id, id, task->ticks / hz);
     }
     delete task;
 }
@@ -176,20 +172,15 @@ void Scheduler::stop() {
 
     #ifdef ENABLE_METRICS
     logger.info("Running metrics collection in scheduler %d", id);
-    std::ofstream cpu_out_file;
-    cpu_out_file.open("./results/latencies_" + std::to_string(id) + "_cpu.csv"); 
-    for (auto &itr : cpu_task_runtimes) {
-        cpu_out_file << (std::chrono::duration_cast<std::chrono::milliseconds>(itr.first - steady_now)).count() << " " << itr.second << ",";
+    for (auto &group_runtimes_pair : runtimes) {
+        std::string group = group_runtimes_pair.first;
+        std::ofstream out_file;
+        out_file.open("./results/latencies_" + std::to_string(id) + "_" + group + ".csv"); 
+        for (auto &itr : group_runtimes_pair.second) {
+            out_file << (std::chrono::duration_cast<std::chrono::milliseconds>(itr.first - steady_now)).count() << " " << itr.second << ",";
+        }
+        out_file << std::endl;
+        out_file.close();
     }
-    cpu_out_file << std::endl;
-    cpu_out_file.close();
-
-    std::ofstream io_out_file;
-    io_out_file.open("./results/latencies_" + std::to_string(id) + "_io.csv"); 
-    for (auto &itr : io_task_runtimes) {
-        io_out_file << (std::chrono::duration_cast<std::chrono::milliseconds>(itr.first - steady_now)).count() << " " << itr.second << ",";
-    }
-    io_out_file << std::endl;
-    io_out_file.close();
     #endif
 }

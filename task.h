@@ -31,6 +31,7 @@ public:
     long ticks = 0;
     long ftick = 0;
     long ltick = 0;
+    std::string group = "GRP0";
 
     Task();
 
@@ -44,6 +45,7 @@ public:
     void setNiceness(int niceness);
     void setTicks(long ticks, long ftick, long ltick);
     void setExecutionMode(TaskExecutionMode exec_mode);
+    void setGroup(std::string group);
     void inherit_from_parent(Task* parent_task, void* parent_result);
     void copy(Task* task);
 

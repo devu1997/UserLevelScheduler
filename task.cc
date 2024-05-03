@@ -50,6 +50,10 @@ void Task::setTicks(long ticks, long ftick, long ltick) {
     this->ltick = ltick;
 }
 
+void Task::setGroup(std::string group) {
+    this->group = group;
+}
+
 void Task::inherit_from_parent(Task* parent_task, void* parent_result) {
     if (parent_task->forward_result) {
         this->input = parent_result;
@@ -61,15 +65,13 @@ void Task::inherit_from_parent(Task* parent_task, void* parent_result) {
     this->ticks = parent_task->ticks;
     this->ftick = parent_task->ftick;
     this->ltick = parent_task->ltick;
+    this->group = parent_task->group;
 }
 
 void Task::copy(Task* task) {
-    task->setInput(this->input);
-    task->setForwardResult(this->forward_result);
-    task->setNextTasks(this->next_tasks);
-    task->setHistory(this->history);
-    task->setNiceness(this->niceness);
-    task->setTicks(this->ticks, this->ftick, this->ltick);
+    task->input = this->input;
+    task->forward_result = this->forward_result;
+    task->next_tasks = this->next_tasks;
 }
 
 int Task::getInteractivityPenality() {
@@ -109,7 +111,7 @@ int Task::getPriority() {
     int priority = 0;
     if (score < SCHED_INTERACT_THRESH) {
         priority = PRI_MIN_INTERACT;
-        priority += (PRI_MAX_INTERACT - PRI_MIN_INTERACT + 1) * score / SCHED_INTERACT_THRESH;
+        priority += PRI_INTERACT_RANGE * score / SCHED_INTERACT_THRESH;
         if (priority < PRI_MIN_INTERACT || priority > PRI_MAX_INTERACT) {
             throw std::runtime_error(std::string("Error: Interactive priority out of range") + std::to_string(priority));
         }

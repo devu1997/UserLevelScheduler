@@ -35,11 +35,8 @@ private:
     std::vector<ProducerConsumerQueue<Task*>> completion_queues;
 
     #ifdef ENABLE_METRICS
-    double cum_cpu_runtime = 0;
-    double cum_io_runtime = 0;
-    std::vector<std::pair<std::chrono::steady_clock::time_point, double>> cpu_task_runtimes;
-    std::vector<std::pair<std::chrono::steady_clock::time_point, double>> io_task_runtimes;
     std::chrono::steady_clock::time_point steady_now = std::chrono::steady_clock::now();
+    std::unordered_map<std::string, std::vector<std::pair<std::chrono::steady_clock::time_point, double>>> runtimes;
     #endif
     
 public:

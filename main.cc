@@ -161,23 +161,136 @@ void sigint_handler(int signal) {
     std::exit(EXIT_SUCCESS); 
 }
 
-int main() {
+void singleIoCpuTasks() {
+    Task *task1 = generateIoTaskChain();
+    task1->setGroup("io");
+    Task *task2 = generateCpuTaskChain();
+    task2->setGroup("cpu");
+    coordinator.submit(task1);
+    coordinator.submit(task2);
+}
 
-    /* IO Intensive task chain */
-    for (int i=0; i<1; i++) {
-      Task *task = generateIoTaskChain();
-      coordinator.submit(task);
+void singleHighLowPriorityIoTasks() {
+    Task *task1 = generateIoTaskChain();
+    task1->setGroup("io-low");
+    Task *task2 = generateIoTaskChain();
+    task2->setGroup("io-high");
+    task2->setNiceness(-20);
+    coordinator.submit(task1);
+    coordinator.submit(task2);
+}
+
+void singleHighLowPriorityCpuTasks() {
+    Task *task1 = generateCpuTaskChain();
+    task1->setGroup("cpu-low");
+    task1->setNiceness(20);
+    Task *task2 = generateCpuTaskChain();
+    task2->setGroup("cpu-high");
+    task2->setNiceness(-20);
+    coordinator.submit(task1);
+    coordinator.submit(task2);
+}
+
+void multipleIoCpuTasks() {
+    for (int i=0; i<10; i++) {
+        Task *task = generateIoTaskChain();
+        task->setGroup("multi-io");
+        coordinator.submit(task);
     }
-    
-    /* CPU Intensive task chain */
-    for (int i=0; i<1; i++) {
-      Task *task = generateCpuTaskChain();
-      coordinator.submit(task);
+    for (int i=0; i<10; i++) {
+        Task *task = generateCpuTaskChain();
+        task->setGroup("multi-cpu");
+        coordinator.submit(task);
     }
+}
+
+void multipleHighLowPriorityCpuTasks() {
+    for (int i=0; i<10; i++) {
+        Task *task = generateCpuTaskChain();
+        task->setGroup("multi-cpu-high");
+        task->setNiceness(-20);
+        coordinator.submit(task);
+    }
+    for (int i=0; i<10; i++) {
+        Task *task = generateCpuTaskChain();
+        task->setGroup("multi-cpu-low");
+        task->setNiceness(20);
+        coordinator.submit(task);
+    }
+}
+
+void multipleHighLowPriorityIoTasks() {
+    for (int i=0; i<10; i++) {
+        Task *task = generateIoTaskChain();
+        task->setGroup("multi-io-high");
+        task->setNiceness(-20);
+        coordinator.submit(task);
+    }
+    for (int i=0; i<10; i++) {
+        Task *task = generateIoTaskChain();
+        task->setGroup("multi-io-low");
+        task->setNiceness(20);
+        coordinator.submit(task);
+    }
+}
+
+void multipleSchedulerMultiIoCpuTasks() {
+    for (int i=0; i<100; i++) {
+        Task *task = generateIoTaskChain();
+        task->setGroup("multi-sch-io");
+        coordinator.submit(task);
+    }
+    for (int i=0; i<100; i++) {
+        Task *task = generateCpuTaskChain();
+        task->setGroup("multi-sch-cpu");
+        coordinator.submit(task);
+    }
+}
+
+void multipleSchedulerMultiHighLowPriorityCpuTasks() {
+    for (int i=0; i<100; i++) {
+        Task *task = generateCpuTaskChain();
+        task->setGroup("multi-sch-cpu-high");
+        task->setNiceness(-20);
+        coordinator.submit(task);
+    }
+    for (int i=0; i<100; i++) {
+        Task *task = generateCpuTaskChain();
+        task->setGroup("multi-sch-cpu-low");
+        task->setNiceness(20);
+        coordinator.submit(task);
+    }
+}
+
+void multipleSchedulerMultiHighLowPriorityIoTasks() {
+    for (int i=0; i<100; i++) {
+        Task *task = generateIoTaskChain();
+        task->setGroup("multi-sch-io-high");
+        task->setNiceness(-20);
+        coordinator.submit(task);
+    }
+    for (int i=0; i<100; i++) {
+        Task *task = generateIoTaskChain();
+        task->setGroup("multi-sch-io-low");
+        task->setNiceness(20);
+        coordinator.submit(task);
+    }
+}
+
+int main() {
+    // singleIoCpuTasks();
+    // singleHighLowPriorityIoTasks();
+    // singleHighLowPriorityCpuTasks();
+
+    // multipleIoCpuTasks();
+    // multipleHighLowPriorityIoTasks();
+    // multipleHighLowPriorityCpuTasks();
+
+    // multipleSchedulerMultiIoCpuTasks();
+    // multipleSchedulerMultiHighLowPriorityCpuTasks();
+    // multipleSchedulerMultiHighLowPriorityIoTasks();
 
     std::signal(SIGINT, sigint_handler);
-
     coordinator.start();
-
     return 0;
 }
