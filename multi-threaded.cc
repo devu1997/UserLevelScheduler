@@ -124,7 +124,7 @@ void generateIoTaskChain(int length, int file_no) {
 }
 
 
-void multipleSchedulerMultiCpuTasks() {
+void multipleSchedulerMultiCpuTasksBenchmark() {
     std::vector<std::thread> threads;
     int core_to_run = 0;
     int max_cores = std::thread::hardware_concurrency();
@@ -139,22 +139,7 @@ void multipleSchedulerMultiCpuTasks() {
     }
 }
 
-void multipleSchedulerMultiIoTasks() {
-    std::vector<std::thread> threads;
-    int core_to_run = 0;
-    int max_cores = std::thread::hardware_concurrency();
-    for (int i=0; i<256; i++) {
-        threads.emplace_back([core_to_run,i] {
-            generateIoTaskChain(20, i);
-        });
-        core_to_run = (core_to_run + 1) % max_cores;
-    }
-    for (std::thread& thread : threads) {
-        thread.join();
-    }
-}
-
-void multipleSchedulerMultiIoCpuTasks() {
+void multipleSchedulerMultiIoTasksBenchmark() {
     std::vector<std::thread> threads;
     int core_to_run = 0;
     int max_cores = std::thread::hardware_concurrency();
@@ -164,6 +149,21 @@ void multipleSchedulerMultiIoCpuTasks() {
         });
         core_to_run = (core_to_run + 1) % max_cores;
     }
+    for (std::thread& thread : threads) {
+        thread.join();
+    }
+}
+
+void multipleSchedulerMultiIoCpuTasksBenchmark() {
+    std::vector<std::thread> threads;
+    int core_to_run = 0;
+    int max_cores = std::thread::hardware_concurrency();
+    for (int i=0; i<256; i++) {
+        threads.emplace_back([core_to_run,i] {
+            generateIoTaskChain(20, i);
+        });
+        core_to_run = (core_to_run + 1) % max_cores;
+    }
     for (int i=0; i<256; i++) {
         threads.emplace_back([core_to_run] {
             generateCpuTaskChain(20 * 20);
@@ -175,7 +175,7 @@ void multipleSchedulerMultiIoCpuTasks() {
     }
 }
 
-void multipleSchedulerMultiCpuCpuTasks() {
+void multipleSchedulerMultiCpuCpuTasksBenchmark() {
     std::vector<std::thread> threads;
     int core_to_run = 0;
     int max_cores = std::thread::hardware_concurrency();
@@ -196,7 +196,7 @@ void multipleSchedulerMultiCpuCpuTasks() {
     }
 }
 
-void multipleSchedulerMultiIoIoTasks() {
+void multipleSchedulerMultiIoIoTasksBenchmark() {
     std::vector<std::thread> threads;
     int core_to_run = 0;
     int max_cores = std::thread::hardware_concurrency();
@@ -274,12 +274,15 @@ std::chrono::steady_clock::time_point threadMigrationBenchmark() {
 
 int main() {
     auto start = std::chrono::steady_clock::now();
-    // multipleSchedulerMultiCpuTasks();
-    // multipleSchedulerMultiIoTasks();
-    // multipleSchedulerMultiIoCpuTasks(); 
-    // multipleSchedulerMultiCpuCpuTasks();
-    // multipleSchedulerMultiIoIoTasks(); 
+
+    // multipleSchedulerMultiCpuTasksBenchmark();
+    // multipleSchedulerMultiIoTasksBenchmark();
+    // multipleSchedulerMultiIoCpuTasksBenchmark(); 
+    // multipleSchedulerMultiCpuCpuTasksBenchmark();
+    // multipleSchedulerMultiIoIoTasksBenchmark(); 
+
     start = threadMigrationBenchmark();
+    
     auto end = std::chrono::steady_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     logger.info("Total task run time is %d milliseconds", duration.count());

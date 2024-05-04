@@ -159,7 +159,7 @@ void sigint_handler(int signal) {
     std::exit(EXIT_SUCCESS); 
 }
 
-void singleIoCpuTasks() {
+void singleIoCpuTasksBenchmark() {
     // Use 1 scheduler
     Task *task1 = generateIoTaskChain(20, 0);
     task1->setGroup("io");
@@ -169,7 +169,7 @@ void singleIoCpuTasks() {
     coordinator.submit(task2);
 }
 
-void singleHighLowPriorityIoTasks() {
+void singleHighLowPriorityIoTasksBenchmark() {
     // Use 1 scheduler
     Task *task1 = generateIoTaskChain(20, 0);
     task1->setGroup("io-low");
@@ -180,7 +180,7 @@ void singleHighLowPriorityIoTasks() {
     coordinator.submit(task2);
 }
 
-void singleHighLowPriorityCpuTasks() {
+void singleHighLowPriorityCpuTasksBenchmark() {
     // Use 1 scheduler
     Task *task1 = generateCpuTaskChain(20);
     task1->setGroup("cpu-low");
@@ -192,7 +192,7 @@ void singleHighLowPriorityCpuTasks() {
     coordinator.submit(task2);
 }
 
-void multipleIoCpuTasks() {
+void multipleIoCpuTasksBenchmark() {
     // Use 1 scheduler
     for (int i=0; i<10; i++) {
         Task *task = generateIoTaskChain(20, i);
@@ -206,7 +206,7 @@ void multipleIoCpuTasks() {
     }
 }
 
-void multipleHighLowPriorityCpuTasks() {
+void multipleHighLowPriorityCpuTasksBenchmark() {
     // Use 1 scheduler
     for (int i=0; i<10; i++) {
         Task *task = generateCpuTaskChain(20);
@@ -222,7 +222,7 @@ void multipleHighLowPriorityCpuTasks() {
     }
 }
 
-void multipleHighLowPriorityIoTasks() {
+void multipleHighLowPriorityIoTasksBenchmark() {
     // Use 1 scheduler
     for (int i=0; i<10; i++) {
         Task *task = generateIoTaskChain(20, i);
@@ -238,7 +238,7 @@ void multipleHighLowPriorityIoTasks() {
     }
 }
 
-void multipleSchedulerMultiHighLowPriorityCpuTasks() {
+void multipleSchedulerMultiHighLowPriorityCpuTasksBenchmark() {
     for (int i=0; i<128; i++) {
         Task *task = generateCpuTaskChain(20);
         task->setGroup("multi-sch-cpu-high");
@@ -253,7 +253,7 @@ void multipleSchedulerMultiHighLowPriorityCpuTasks() {
     }
 }
 
-void multipleSchedulerMultiHighLowPriorityIoTasks() {
+void multipleSchedulerMultiHighLowPriorityIoTasksBenchmark() {
     for (int i=0; i<128; i++) {
         Task *task = generateIoTaskChain(20, i);
         task->setGroup("multi-sch-io-high");
@@ -268,7 +268,7 @@ void multipleSchedulerMultiHighLowPriorityIoTasks() {
     }
 }
 
-void multipleSchedulerMultiCpuTasks() {
+void multipleSchedulerMultiCpuTasksBenchmark() {
     // Use 32 schedulers
     for (int i=0; i<256; i++) {
         Task *task = generateCpuTaskChain(20 * 20);
@@ -277,7 +277,7 @@ void multipleSchedulerMultiCpuTasks() {
     }
 }
 
-void multipleSchedulerMultiIoTasks() {
+void multipleSchedulerMultiIoTasksBenchmark() {
     // Use 32 schedulers
     for (int i=0; i<256; i++) {
         Task *task = generateIoTaskChain(20, i);
@@ -286,7 +286,7 @@ void multipleSchedulerMultiIoTasks() {
     }
 }
 
-void multipleSchedulerMultiIoCpuTasks() {
+void multipleSchedulerMultiIoCpuTasksBenchmark() {
     // Use 32 schedulers
     for (int i=0; i<256; i++) {
         Task *task = generateIoTaskChain(20, i);
@@ -300,7 +300,7 @@ void multipleSchedulerMultiIoCpuTasks() {
     }
 }
 
-void multipleSchedulerMultiCpuCpuTasks() {
+void multipleSchedulerMultiCpuCpuTasksBenchmark() {
     // Use 32 schedulers
     for (int i=0; i<256; i++) {
         Task *task = generateCpuTaskChain(20 * 20);
@@ -314,7 +314,7 @@ void multipleSchedulerMultiCpuCpuTasks() {
     }
 }
 
-void multipleSchedulerMultiIoIoTasks() {
+void multipleSchedulerMultiIoIoTasksBenchmark() {
     // Use 32 schedulers
     for (int i=0; i<256; i++) {
         Task *task = generateIoTaskChain(20, i);
@@ -328,7 +328,7 @@ void multipleSchedulerMultiIoIoTasks() {
     }
 }
 
-void loadBalanceCpuTasks() {
+void loadBalanceCpuTasksBenchmark() {
     // Use 8 schedulers
     for (int i=0; i<256; i++) {
         Task *task = generateCpuTaskChain(20*20*5);
@@ -337,7 +337,7 @@ void loadBalanceCpuTasks() {
     }
 }
 
-void interactivitySingleIoCpuTasks() {
+void interactivitySingleIoCpuTasksBenchmark() {
     // Use 1 scheduler
     Task *task1 = generateIoTaskChain(20, 0);
     task1->setGroup("interactivity-sch-io-0");
@@ -369,29 +369,25 @@ void threadMigrationBenchmark() {
 
 int main() {
     // singleIoCpuTasks(); // 5 seconds
-    // singleHighLowPriorityIoTasks(); // 5 seconds
-    // singleHighLowPriorityCpuTasks(); // 5 seconds
+    // singleHighLowPriorityIoTasksBenchmark(); // 5 seconds
+    // singleHighLowPriorityCpuTasksBenchmark(); // 5 seconds
 
-    // multipleIoCpuTasks(); // 30 seconds
-    // multipleHighLowPriorityIoTasks(); // 30 seconds
-    // multipleHighLowPriorityCpuTasks(); // 30 seconds
+    // multipleIoCpuTasksBenchmark(); // 30 seconds
+    // multipleHighLowPriorityIoTasksBenchmark(); // 30 seconds
+    // multipleHighLowPriorityCpuTasksBenchmark(); // 30 seconds
 
-    // multipleSchedulerMultiIoCpuTasks(); // 2 minutes
-    // multipleSchedulerMultiHighLowPriorityCpuTasks(); // 2 minutes
-    // multipleSchedulerMultiHighLowPriorityIoTasks(); // 2 minutes
+    // loadBalanceCpuTasksBenchmark(); // 5 minutes
 
-    loadBalanceCpuTasks(); // 2 minutes
+    // interactivitySingleIoCpuTasksBenchmark(); // 5 seconds
 
-    // interactivitySingleIoCpuTasks(); // 5 seconds
-
-    // multipleSchedulerMultiCpuTasks();
-    // multipleSchedulerMultiIoTasks();
-    // multipleSchedulerMultiIoCpuTasks();
-    // multipleSchedulerMultiIoCpuTasks(); 
-    // multipleSchedulerMultiCpuCpuTasks();
-    // multipleSchedulerMultiIoIoTasks();
+    // multipleSchedulerMultiCpuTasksBenchmark();
+    // multipleSchedulerMultiIoTasksBenchmark();
+    // multipleSchedulerMultiIoCpuTasksBenchmark();
+    // multipleSchedulerMultiCpuCpuTasksBenchmark();
+    // multipleSchedulerMultiIoIoTasksBenchmark();
 
     // coreCountBenchmark();
+
     // threadMigrationBenchmark();
 
     std::signal(SIGINT, sigint_handler);
