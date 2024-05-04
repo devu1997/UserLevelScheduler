@@ -368,7 +368,9 @@ void threadMigrationBenchmark() {
 }
 
 int main() {
-    // singleIoCpuTasks(); // 5 seconds
+    /* For single scheduler tests we use tasks of milliseconds life to clearly see the sleeping and running time in result graph */
+    
+    // singleIoCpuTasksBenchmark(); // 5 seconds
     // singleHighLowPriorityIoTasksBenchmark(); // 5 seconds
     // singleHighLowPriorityCpuTasksBenchmark(); // 5 seconds
 
