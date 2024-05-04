@@ -318,8 +318,8 @@ void multipleSchedulerMultiIoIoTasks() {
 }
 
 void loadBalanceCpuTasks() {
-    for (int i=0; i<1024; i++) {
-        Task *task = generateCpuTaskChain(20);
+    for (int i=0; i<128; i++) {
+        Task *task = generateCpuTaskChain(20*20*10);
         task->setGroup("load-balance-cpu");
         coordinator.submit(task);
     }
@@ -365,7 +365,7 @@ int main() {
     // multipleSchedulerMultiHighLowPriorityCpuTasks(); // 2 minutes
     // multipleSchedulerMultiHighLowPriorityIoTasks(); // 2 minutes
 
-    // loadBalanceCpuTasks(); // 2 minutes
+    loadBalanceCpuTasks(); // 2 minutes
 
     // interactivitySingleIoCpuTasks(); // 5 seconds
 
@@ -376,7 +376,8 @@ int main() {
     // multipleSchedulerMultiCpuCpuTasks();
     // multipleSchedulerMultiIoIoTasks();
 
-    coreCountBenchmark();
+    // coreCountBenchmark();
+    // threadMigrationBenchmark();
 
     std::signal(SIGINT, sigint_handler);
     coordinator.start();
