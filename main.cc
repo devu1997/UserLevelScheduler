@@ -76,11 +76,11 @@ struct FileOpenTaskInputExtention : public FileOpenTaskInput {
   }
 };
 
-// One chain takes ~800ms
 Task* generateCpuTaskChain(int length) {
+    length = length * 2;
     Task* task = new CpuTask(
       [](void*) -> void* { 
-          generatePrimes(200500);
+          generatePrimes(10000);
           return nullptr;
       }
     );
@@ -94,25 +94,25 @@ Task* generateCpuTaskChain(int length) {
     return start_task;
 }
 
-// One chain takes ~600ms
-Task* generateIoTaskChain(int length) {
-    length = length/2;
-    std::string read_file_path = "/home/users/devika/os/UserLevelScheduler/logs/log.txt";
-    std::string write_file_path = "/home/users/devika/os/UserLevelScheduler/logs/out.txt";
+
+Task* generateIoTaskChain(int length, int file_no) {
+    std::string read_file_path = "/home/users/devika/os/UserLevelScheduler/logs/log" + std::to_string(file_no) + ".txt";
+    std::string write_file_path = "/home/users/devika/os/UserLevelScheduler/logs/out" + std::to_string(file_no) + ".txt";
+    file_no++;
     Task* fro = new FileOpenTask(
         [](void* input, void* output) -> void* {
             FileOpenTaskOutput* fo_output = static_cast<FileOpenTaskOutput*>(output);
             return generateFileReadInput(fo_output->file_fd);
         }
     );
-    fro->setInput(new FileOpenTaskInput({read_file_path.c_str(), O_RDONLY | O_DIRECT}));
+    fro->setInput(new FileOpenTaskInput({read_file_path.c_str(), O_RDONLY | O_DIRECT | O_SYNC}));
     Task* frr = new FileReadTask();
     Task* frc = new FileCloseTask(
-      [write_file_path](void* in) -> void* {
-        FileTaskInput* ft_input = static_cast<FileTaskInput*>(in);
-        FileOpenTaskInputExtention* out = new FileOpenTaskInputExtention(write_file_path.c_str(), O_RDWR | O_CREAT | O_TRUNC | O_DIRECT, 0644 , ft_input);
-        return out;
-      }
+        [write_file_path](void* in) -> void* {
+            FileTaskInput* ft_input = static_cast<FileTaskInput*>(in);
+            FileOpenTaskInputExtention* out = new FileOpenTaskInputExtention(write_file_path.c_str(), O_RDWR | O_CREAT | O_TRUNC | O_DIRECT | O_SYNC, 0644, ft_input);
+            return out;
+        }
     );
     Task* fwo = new FileOpenTask(
       [](void* in, void* out) -> void* {
@@ -122,34 +122,33 @@ Task* generateIoTaskChain(int length) {
         return fo_in->ft_input;
       }
     );
-    Task* fww = new FileWriteTask();
-    Task* fwc = new FileCloseTask();
-    fwc->setForwardResult(false);
+    Task* fww = new FileWriteTask(
+        [](void* in, void* out) -> void* {
+            return out;
+        }
+    );
+    Task* fwc = frc->fork();
+    Task* cpu_task = new CpuTask(
+        [](void* in) -> void* { 
+            generatePrimes(100); 
+            return in;
+        }
+    );
 
     Task* start_task = fro;
-    for (int i=0; i<length; i++) {
-      fro->setNextTasks({frr});
-      frr->setNextTasks({frc});
-      frc->setNextTasks({fwo});
-      fwo->setNextTasks({fww});
-      fww->setNextTasks({fwc});
-
-      if (i < length-1) {
-        Task* fro_fork = fro->fork();
-        Task* frr_fork = frr->fork();
-        Task* frc_fork = frc->fork();
-        Task* fwo_fork = fwo->fork();
+    fro->setNextTasks({frr});
+    frr->setNextTasks({frc});
+    frc->setNextTasks({fwo});
+    fwo->setNextTasks({fww});
+    for (int i=0; i<length-1; i++) {
+        fww->setNextTasks({cpu_task});
         Task* fww_fork = fww->fork();
-        Task* fwc_fork = fwc->fork();
-        fwc->setNextTasks({fro_fork});
-        fro = fro_fork;
-        frr = frr_fork;
-        frc = frc_fork;
-        fwo = fwo_fork;
+        Task* cpu_task_fork = cpu_task->fork();
+        cpu_task->setNextTasks({fww_fork});
         fww = fww_fork;
-        fwc = fwc_fork;
-      }
+        cpu_task = cpu_task_fork;
     }
+    fww->setNextTasks({fwc});
     return start_task;
 }
 
@@ -161,7 +160,7 @@ void sigint_handler(int signal) {
 }
 
 void singleIoCpuTasks() {
-    Task *task1 = generateIoTaskChain(20);
+    Task *task1 = generateIoTaskChain(20, 0);
     task1->setGroup("io");
     Task *task2 = generateCpuTaskChain(20);
     task2->setGroup("cpu");
@@ -170,9 +169,9 @@ void singleIoCpuTasks() {
 }
 
 void singleHighLowPriorityIoTasks() {
-    Task *task1 = generateIoTaskChain(20);
+    Task *task1 = generateIoTaskChain(20, 0);
     task1->setGroup("io-low");
-    Task *task2 = generateIoTaskChain(20);
+    Task *task2 = generateIoTaskChain(20, 1);
     task2->setGroup("io-high");
     task2->setNiceness(-20);
     coordinator.submit(task1);
@@ -192,7 +191,7 @@ void singleHighLowPriorityCpuTasks() {
 
 void multipleIoCpuTasks() {
     for (int i=0; i<10; i++) {
-        Task *task = generateIoTaskChain(20);
+        Task *task = generateIoTaskChain(20, i);
         task->setGroup("multi-io");
         coordinator.submit(task);
     }
@@ -220,28 +219,15 @@ void multipleHighLowPriorityCpuTasks() {
 
 void multipleHighLowPriorityIoTasks() {
     for (int i=0; i<10; i++) {
-        Task *task = generateIoTaskChain(20);
+        Task *task = generateIoTaskChain(20, i);
         task->setGroup("multi-io-high");
         task->setNiceness(-20);
         coordinator.submit(task);
     }
     for (int i=0; i<10; i++) {
-        Task *task = generateIoTaskChain(20);
+        Task *task = generateIoTaskChain(20, i+10);
         task->setGroup("multi-io-low");
         task->setNiceness(20);
-        coordinator.submit(task);
-    }
-}
-
-void multipleSchedulerMultiIoCpuTasks() {
-    for (int i=0; i<128; i++) {
-        Task *task = generateIoTaskChain(20);
-        task->setGroup("multi-sch-io");
-        coordinator.submit(task);
-    }
-    for (int i=0; i<128; i++) {
-        Task *task = generateCpuTaskChain(20);
-        task->setGroup("multi-sch-cpu");
         coordinator.submit(task);
     }
 }
@@ -263,21 +249,76 @@ void multipleSchedulerMultiHighLowPriorityCpuTasks() {
 
 void multipleSchedulerMultiHighLowPriorityIoTasks() {
     for (int i=0; i<128; i++) {
-        Task *task = generateIoTaskChain(20);
+        Task *task = generateIoTaskChain(20, i);
         task->setGroup("multi-sch-io-high");
         task->setNiceness(-20);
         coordinator.submit(task);
     }
     for (int i=0; i<128; i++) {
-        Task *task = generateIoTaskChain(20);
+        Task *task = generateIoTaskChain(20, i+128);
         task->setGroup("multi-sch-io-low");
         task->setNiceness(20);
         coordinator.submit(task);
     }
 }
 
-void loadBalanceCpuTasks() {
+void multipleSchedulerMultiCpuTasks() {
     for (int i=0; i<256; i++) {
+        Task *task = generateCpuTaskChain(20 * 20);
+        task->setGroup("multi-sch-cpu-0");
+        coordinator.submit(task);
+    }
+}
+
+void multipleSchedulerMultiIoTasks() {
+    for (int i=0; i<256; i++) {
+        Task *task = generateIoTaskChain(20, i);
+        task->setGroup("multi-sch-io-0");
+        coordinator.submit(task);
+    }
+}
+
+void multipleSchedulerMultiIoCpuTasks() {
+    for (int i=0; i<256; i++) {
+        Task *task = generateIoTaskChain(20, i);
+        task->setGroup("multi-sch-io");
+        coordinator.submit(task);
+    }
+    for (int i=0; i<256; i++) {
+        Task *task = generateCpuTaskChain(20 * 20);
+        task->setGroup("multi-sch-cpu");
+        coordinator.submit(task);
+    }
+}
+
+void multipleSchedulerMultiCpuCpuTasks() {
+    for (int i=0; i<256; i++) {
+        Task *task = generateCpuTaskChain(20 * 20);
+        task->setGroup("multi-sch-cpu-1");
+        coordinator.submit(task);
+    }
+    for (int i=0; i<256; i++) {
+        Task *task = generateCpuTaskChain(20 * 20);
+        task->setGroup("multi-sch-cpu-2");
+        coordinator.submit(task);
+    }
+}
+
+void multipleSchedulerMultiIoIoTasks() {
+    for (int i=0; i<256; i++) {
+        Task *task = generateIoTaskChain(20, i);
+        task->setGroup("multi-sch-io-1");
+        coordinator.submit(task);
+    }
+    for (int i=0; i<256; i++) {
+        Task *task = generateIoTaskChain(20, i+256);
+        task->setGroup("multi-sch-io-2");
+        coordinator.submit(task);
+    }
+}
+
+void loadBalanceCpuTasks() {
+    for (int i=0; i<1024; i++) {
         Task *task = generateCpuTaskChain(20);
         task->setGroup("load-balance-cpu");
         coordinator.submit(task);
@@ -285,7 +326,7 @@ void loadBalanceCpuTasks() {
 }
 
 void interactivitySingleIoCpuTasks() {
-    Task *task1 = generateIoTaskChain(20);
+    Task *task1 = generateIoTaskChain(20, 0);
     task1->setGroup("interactivity-sch-io-0");
     coordinator.submit(task1);
     Task *task2 = generateCpuTaskChain(20);
@@ -293,22 +334,49 @@ void interactivitySingleIoCpuTasks() {
     coordinator.submit(task2);
 }
 
+void coreCountBenchmark() {
+    for (int i=0; i<128; i++) {
+        Task *task = generateIoTaskChain(20, i);
+        coordinator.submit(task);
+    }
+    for (int i=0; i<128; i++) {
+        Task *task = generateCpuTaskChain(20 * 20);
+        coordinator.submit(task);
+    }
+}
+
+void threadMigrationBenchmark() {
+    for (int i=0; i<32; i++) {
+        Task *task = generateCpuTaskChain(20 * 20);
+        coordinator.submit(task);
+    }
+}
+
 int main() {
-    // singleIoCpuTasks();
-    // singleHighLowPriorityIoTasks();
-    // singleHighLowPriorityCpuTasks();
+    // singleIoCpuTasks(); // 5 seconds
+    // singleHighLowPriorityIoTasks(); // 5 seconds
+    // singleHighLowPriorityCpuTasks(); // 5 seconds
 
-    // multipleIoCpuTasks();
-    // multipleHighLowPriorityIoTasks();
-    // multipleHighLowPriorityCpuTasks();
+    // multipleIoCpuTasks(); // 30 seconds
+    // multipleHighLowPriorityIoTasks(); // 30 seconds
+    // multipleHighLowPriorityCpuTasks(); // 30 seconds
 
+    // multipleSchedulerMultiIoCpuTasks(); // 2 minutes
+    // multipleSchedulerMultiHighLowPriorityCpuTasks(); // 2 minutes
+    // multipleSchedulerMultiHighLowPriorityIoTasks(); // 2 minutes
+
+    // loadBalanceCpuTasks(); // 2 minutes
+
+    // interactivitySingleIoCpuTasks(); // 5 seconds
+
+    // multipleSchedulerMultiCpuTasks();
+    // multipleSchedulerMultiIoTasks();
     // multipleSchedulerMultiIoCpuTasks();
-    // multipleSchedulerMultiHighLowPriorityCpuTasks();
-    // multipleSchedulerMultiHighLowPriorityIoTasks();
+    // multipleSchedulerMultiIoCpuTasks(); 
+    // multipleSchedulerMultiCpuCpuTasks();
+    // multipleSchedulerMultiIoIoTasks();
 
-    // loadBalanceCpuTasks();
-
-    // interactivitySingleIoCpuTasks();
+    coreCountBenchmark();
 
     std::signal(SIGINT, sigint_handler);
     coordinator.start();

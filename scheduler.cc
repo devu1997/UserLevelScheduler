@@ -23,7 +23,7 @@ void Scheduler::setCoordinator(Coordinator* coordinator) {
     this->coordinator = coordinator;
 }
 
-long long Scheduler::getCurrentTicks() {
+unsigned long long Scheduler::getCurrentTicks() {
     return (total_duration.count() * hz) / 1000;
 }
 

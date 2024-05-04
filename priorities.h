@@ -30,7 +30,7 @@
 
 #define roundup(x, y)           ((((x) + ((y) - 1)) / (y)) * (y))
 
-#define hz                                   ((std::chrono::steady_clock::period::den / std::chrono::steady_clock::period::num) / 1000000)
+#define hz                                   (std::chrono::steady_clock::period::den / std::chrono::steady_clock::period::num)
 #define SCHED_TICK_SECS                      (10)
 #define SCHED_TICK_TARG                      (hz * SCHED_TICK_SECS)
 #define SCHED_TICK_MAX                       (SCHED_TICK_TARG + hz)

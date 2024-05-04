@@ -10,7 +10,7 @@
 
 
 Coordinator::Coordinator() {
-    int max_threads = std::thread::hardware_concurrency();
+    int max_threads = std::thread::hardware_concurrency() / 2;
     logger.info("Creating %d schedulers", max_threads);
     for (int i = 0; i < max_threads; ++i) {
         this->schedulers.push_back(new Scheduler(i, max_threads));
@@ -138,7 +138,7 @@ void Coordinator::start() {
                 logger.error("Scheduler %d caught unknown exception", scheduler->id);
             }
         });
-        core_to_run = (core_to_run + 1) % max_cores;
+        core_to_run = (core_to_run + 2) % max_cores;
     }
     threads.emplace_back([this] {
         try {

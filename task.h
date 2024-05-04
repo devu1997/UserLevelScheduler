@@ -28,9 +28,9 @@ public:
     History history;
     TaskExecutionMode exec_mode = TaskExecutionMode::SYNC;
     int niceness = DEFAULT_NICENESS;
-    long ticks = 0;
-    long ftick = 0;
-    long ltick = 0;
+    unsigned long long ticks = 0;
+    unsigned long long ftick = 0;
+    unsigned long long ltick = 0;
     std::string group = "GRP0";
 
     Task();
@@ -43,7 +43,7 @@ public:
     void setNextTasks(std::vector<Task*> next_tasks);
     void setHistory(History history);
     void setNiceness(int niceness);
-    void setTicks(long ticks, long ftick, long ltick);
+    void setTicks(unsigned long long ticks, unsigned long long ftick, unsigned long long ltick);
     void setExecutionMode(TaskExecutionMode exec_mode);
     void setGroup(std::string group);
     void inherit_from_parent(Task* parent_task, void* parent_result);
@@ -51,7 +51,7 @@ public:
 
     int getInteractivityPenality();
     int getPriority();
-    void updateCpuUtilization(long long duration, bool run);
+    void updateCpuUtilization(unsigned long long total_ticks, bool run);
 
     static int generate_task_id();
 };

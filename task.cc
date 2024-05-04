@@ -44,7 +44,7 @@ void Task::setNiceness(int niceness) {
     this->inherit_niceness = false;
 }
 
-void Task::setTicks(long ticks, long ftick, long ltick) {
+void Task::setTicks(unsigned long long ticks, unsigned long long ftick, unsigned long long ltick) {
     this->ticks = ticks;
     this->ftick = ftick;
     this->ltick = ltick;
@@ -79,15 +79,17 @@ int Task::getInteractivityPenality() {
         return SCHED_INTERACT_HALF; // Initially set the task as batch so that non-interactive tasks will not starve interactive tasks
     }
     if (history.sleep_time > history.run_time) {
-        return (SCHED_INTERACT_HALF * history.run_time) / history.sleep_time;
+        long double div = std::max(1.0, (history.sleep_time.count() * 1.0) / history.run_time.count());
+        return (SCHED_INTERACT_HALF / div);
     } else if (history.sleep_time < history.run_time) {
-        return (2 * SCHED_INTERACT_HALF) - ((SCHED_INTERACT_HALF * history.sleep_time) / history.run_time);
+        long double div = std::max(1.0, (history.run_time.count() * 1.0) / history.sleep_time.count());
+        return SCHED_INTERACT_HALF + (SCHED_INTERACT_HALF - (SCHED_INTERACT_HALF / div));
     }
     return SCHED_INTERACT_HALF;
 }
 
-void Task::updateCpuUtilization(long long total_ticks, bool run) {
-    long t = total_ticks;
+void Task::updateCpuUtilization(unsigned long long total_ticks, bool run) {
+    unsigned long long t = total_ticks;
     logger.trace("Before ticks: %d task_ticks: %d ftick: %d ltick: %d", t, ticks, ftick, ltick);
     if ((u_int)(t - ltick) >= SCHED_TICK_TARG) {
         ticks = 0;

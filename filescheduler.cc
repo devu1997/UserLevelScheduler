@@ -4,7 +4,7 @@
 #include "filescheduler.h"
 
 
-#define QUEUE_DEPTH 128
+#define QUEUE_DEPTH 1024
 
 FileScheduler::FileScheduler() {
     int ret = io_uring_queue_init(QUEUE_DEPTH, &ring, 0);
@@ -23,7 +23,6 @@ void FileScheduler::setScheduler(Scheduler* scheduler) {
 
 void FileScheduler::submit(AsyncFileReadTask* task) {
     FileTaskInput* ft_input = static_cast<FileTaskInput*>(task->input);
-    task->setStartTime();
     struct io_uring_sqe* sqe = io_uring_get_sqe(&ring);
     io_uring_prep_readv(sqe, ft_input->file_fd, ft_input->iovecs, ft_input->blocks, 0);
     io_uring_sqe_set_data(sqe, task);
@@ -31,12 +30,12 @@ void FileScheduler::submit(AsyncFileReadTask* task) {
     if (ret < 0) {
         throw std::runtime_error(std::string("Error: File read submission failed: ") + std::to_string(ret));
     }
+    task->setStartTime();
     pending_requests++;
 }
 
 void FileScheduler::submit(AsyncFileWriteTask* task) {
     FileTaskInput* ft_input = static_cast<FileTaskInput*>(task->input);
-    task->setStartTime();
     struct io_uring_sqe* sqe = io_uring_get_sqe(&ring);
     io_uring_prep_writev(sqe, ft_input->file_fd, ft_input->iovecs, ft_input->blocks, 0);
     io_uring_sqe_set_data(sqe, task);
@@ -44,6 +43,7 @@ void FileScheduler::submit(AsyncFileWriteTask* task) {
     if (ret < 0) {
         throw std::runtime_error(std::string("Error: File write submission failed: ") + std::to_string(ret));
     }
+    task->setStartTime();
     pending_requests++;
 }
 

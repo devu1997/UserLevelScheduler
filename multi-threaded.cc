@@ -17,6 +17,7 @@
 #define BLOCK_SZ    1024
 
 struct FileTaskInput {
+    int file_fd;
     off_t file_size;
     int blocks;
     struct iovec iovecs[];
@@ -61,7 +62,7 @@ std::vector<int> generatePrimes(int limit) {
 }
 
 FileTaskInput* readFile(std::string read_file_path) {
-    int fd = open(read_file_path.c_str(), O_RDONLY | O_DIRECT);
+    int fd = open(read_file_path.c_str(), O_RDONLY | O_DIRECT | O_SYNC);
     if (fd == -1) {
         throw std::runtime_error("Error: Failed to open input file.");
     }
@@ -93,94 +94,224 @@ FileTaskInput* readFile(std::string read_file_path) {
 }
 
 void writeFile(std::string write_file_path, FileTaskInput* ft_input) {
-    int fd = open(write_file_path.c_str(), O_RDWR | O_CREAT | O_TRUNC | O_DIRECT, 0644);
+    for (int current_block=0; current_block<ft_input->blocks; current_block++) {
+        pwrite(ft_input->file_fd, ft_input->iovecs[current_block].iov_base, ft_input->iovecs[current_block].iov_len, BLOCK_SZ * current_block);
+    }
+}
+
+void generateCpuTaskChain(int length) {
+    length = length * 2;
+    for (int i=0; i<length; i++) {
+        generatePrimes(10000);
+    }
+}
+
+void generateIoTaskChain(int length, int file_no) {
+    std::string read_file_path = "/home/users/devika/os/UserLevelScheduler/logs/log" + std::to_string(file_no) + ".txt";
+    std::string write_file_path = "/home/users/devika/os/UserLevelScheduler/logs/out" + std::to_string(file_no) + ".txt";
+    FileTaskInput* ft_input = readFile(read_file_path);
+    int fd = open(write_file_path.c_str(), O_RDWR | O_CREAT | O_TRUNC | O_DIRECT | O_SYNC, 0644);
     if (fd == -1) {
         throw std::runtime_error("Error: Failed to open input file.");
     }
-    for (int current_block=0; current_block<ft_input->blocks; current_block++) {
-        pwrite(fd, ft_input->iovecs[current_block].iov_base, ft_input->iovecs[current_block].iov_len, BLOCK_SZ * current_block);
-    }
-    close(fd);
-}
-
-// One chain takes ~800ms
-void generateCpuTaskChain(int length) {
+    ft_input->file_fd = fd;
     for (int i=0; i<length; i++) {
-        generatePrimes(200500);
+        writeFile(write_file_path, ft_input);
+        generatePrimes(100);
     }
 }
 
-// One chain takes ~800ms
-void generateIoTaskChain(int length) {
-  for (int i=0; i<length/2; i++) {
-    std::string read_file_path = "/home/users/devika/os/UserLevelScheduler/logs/log.txt";
-    std::string write_file_path = "/home/users/devika/os/UserLevelScheduler/logs/out.txt";
-    FileTaskInput* ft_input = readFile(read_file_path);
-    writeFile(write_file_path, ft_input);
-  }
+
+void multipleSchedulerMultiCpuTasks() {
+    std::vector<std::thread> threads;
+    int core_to_run = 0;
+    int max_cores = std::thread::hardware_concurrency();
+    for (int i=0; i<256; i++) {
+        threads.emplace_back([core_to_run] {
+            // Set CPU affinity
+            #ifdef ENABLE_PINNING
+            #ifdef __linux__
+            cpu_set_t cpuset;
+            CPU_ZERO(&cpuset);       
+            CPU_SET(core_to_run, &cpuset);
+            if (pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset) != 0) {
+                throw std::runtime_error(std::string("pthread_setaffinity_np failed: ") + std::strerror(errno));
+            }
+            #endif
+            #endif
+            generateCpuTaskChain(20 * 20);
+        });
+        core_to_run = (core_to_run + 1) % max_cores;
+    }
+    for (std::thread& thread : threads) {
+        thread.join();
+    }
+}
+
+void multipleSchedulerMultiIoTasks() {
+    std::vector<std::thread> threads;
+    int core_to_run = 0;
+    int max_cores = std::thread::hardware_concurrency();
+    for (int i=0; i<256; i++) {
+        threads.emplace_back([core_to_run,i] {
+            // Set CPU affinity
+            #ifdef ENABLE_PINNING
+            #ifdef __linux__
+            cpu_set_t cpuset;
+            CPU_ZERO(&cpuset);       
+            CPU_SET(core_to_run, &cpuset);
+            if (pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset) != 0) {
+                throw std::runtime_error(std::string("pthread_setaffinity_np failed: ") + std::strerror(errno));
+            }
+            #endif
+            #endif
+            generateIoTaskChain(20, i);
+        });
+        core_to_run = (core_to_run + 1) % max_cores;
+    }
+    for (std::thread& thread : threads) {
+        thread.join();
+    }
+}
+
+void multipleSchedulerMultiIoCpuTasks() {
+    std::vector<std::thread> threads;
+    int core_to_run = 0;
+    int max_cores = std::thread::hardware_concurrency();
+    for (int i=0; i<256; i++) {
+        threads.emplace_back([core_to_run,i] {
+            // Set CPU affinity
+            #ifdef ENABLE_PINNING
+            #ifdef __linux__
+            cpu_set_t cpuset;
+            CPU_ZERO(&cpuset);       
+            CPU_SET(core_to_run, &cpuset);
+            if (pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset) != 0) {
+                throw std::runtime_error(std::string("pthread_setaffinity_np failed: ") + std::strerror(errno));
+            }
+            #endif
+            #endif
+            generateIoTaskChain(20, i);
+        });
+        core_to_run = (core_to_run + 1) % max_cores;
+    }
+    for (int i=0; i<256; i++) {
+        threads.emplace_back([core_to_run] {
+            // Set CPU affinity
+            #ifdef ENABLE_PINNING
+            #ifdef __linux__
+            cpu_set_t cpuset;
+            CPU_ZERO(&cpuset);       
+            CPU_SET(core_to_run, &cpuset);
+            if (pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset) != 0) {
+                throw std::runtime_error(std::string("pthread_setaffinity_np failed: ") + std::strerror(errno));
+            }
+            #endif
+            #endif
+            generateCpuTaskChain(20 * 20);
+        });
+        core_to_run = (core_to_run + 1) % max_cores;
+    }
+    for (std::thread& thread : threads) {
+        thread.join();
+    }
+}
+
+void multipleSchedulerMultiCpuCpuTasks() {
+    std::vector<std::thread> threads;
+    int core_to_run = 0;
+    int max_cores = std::thread::hardware_concurrency();
+    for (int i=0; i<256; i++) {
+        threads.emplace_back([core_to_run] {
+            // Set CPU affinity
+            #ifdef ENABLE_PINNING
+            #ifdef __linux__
+            cpu_set_t cpuset;
+            CPU_ZERO(&cpuset);       
+            CPU_SET(core_to_run, &cpuset);
+            if (pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset) != 0) {
+                throw std::runtime_error(std::string("pthread_setaffinity_np failed: ") + std::strerror(errno));
+            }
+            #endif
+            #endif
+            generateCpuTaskChain(20 * 20);
+        });
+        core_to_run = (core_to_run + 1) % max_cores;
+    }
+    for (int i=0; i<256; i++) {
+        threads.emplace_back([core_to_run] {
+            // Set CPU affinity
+            #ifdef ENABLE_PINNING
+            #ifdef __linux__
+            cpu_set_t cpuset;
+            CPU_ZERO(&cpuset);       
+            CPU_SET(core_to_run, &cpuset);
+            if (pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset) != 0) {
+                throw std::runtime_error(std::string("pthread_setaffinity_np failed: ") + std::strerror(errno));
+            }
+            #endif
+            #endif
+            generateCpuTaskChain(20 * 20);
+        });
+        core_to_run = (core_to_run + 1) % max_cores;
+    }
+    for (std::thread& thread : threads) {
+        thread.join();
+    }
+}
+
+void multipleSchedulerMultiIoIoTasks() {
+    std::vector<std::thread> threads;
+    int core_to_run = 0;
+    int max_cores = std::thread::hardware_concurrency();
+    for (int i=0; i<256; i++) {
+        threads.emplace_back([core_to_run,i] {
+            // Set CPU affinity
+            #ifdef ENABLE_PINNING
+            #ifdef __linux__
+            cpu_set_t cpuset;
+            CPU_ZERO(&cpuset);       
+            CPU_SET(core_to_run, &cpuset);
+            if (pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset) != 0) {
+                throw std::runtime_error(std::string("pthread_setaffinity_np failed: ") + std::strerror(errno));
+            }
+            #endif
+            #endif
+            generateIoTaskChain(20, i);
+        });
+        core_to_run = (core_to_run + 1) % max_cores;
+    }
+    for (int i=0; i<256; i++) {
+        threads.emplace_back([core_to_run,i] {
+            // Set CPU affinity
+            #ifdef ENABLE_PINNING
+            #ifdef __linux__
+            cpu_set_t cpuset;
+            CPU_ZERO(&cpuset);       
+            CPU_SET(core_to_run, &cpuset);
+            if (pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset) != 0) {
+                throw std::runtime_error(std::string("pthread_setaffinity_np failed: ") + std::strerror(errno));
+            }
+            #endif
+            #endif
+            generateIoTaskChain(20, i+256);
+        });
+        core_to_run = (core_to_run + 1) % max_cores;
+    }
+    for (std::thread& thread : threads) {
+        thread.join();
+    }
 }
 
 int main() {
     auto start = std::chrono::steady_clock::now();
-    std::vector<std::thread> threads;
-    int core_to_run = 0;
-    int max_cores = std::thread::hardware_concurrency();
-    for (int i=0; i<128; i++) {
-        threads.emplace_back([core_to_run] {
-            try {
-                // Set CPU affinity
-                #ifdef ENABLE_PINNING
-                #ifdef __linux__
-                cpu_set_t cpuset;
-                CPU_ZERO(&cpuset);       
-                CPU_SET(core_to_run, &cpuset);
-                if (pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset) != 0) {
-                    throw std::runtime_error(std::string("pthread_setaffinity_np failed: ") + std::strerror(errno));
-                }
-                #endif
-                #endif
-                generateIoTaskChain(20);
-            } catch (const std::runtime_error& e) {
-                logger.error("Caught runtime error: %s", e.what());
-            } catch (const std::exception& e) {
-                logger.error("Caught exception: %s", e.what());
-            } catch (...) {
-                logger.error("Caught unknown exception");
-            }
-        });
-        core_to_run = (core_to_run + 1) % max_cores;
-    }
-    for (int i=0; i<128; i++) {
-        threads.emplace_back([core_to_run] {
-            try {
-                // Set CPU affinity
-                #ifdef ENABLE_PINNING
-                #ifdef __linux__
-                cpu_set_t cpuset;
-                CPU_ZERO(&cpuset);       
-                CPU_SET(core_to_run, &cpuset);
-                if (pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset) != 0) {
-                    throw std::runtime_error(std::string("pthread_setaffinity_np failed: ") + std::strerror(errno));
-                }
-                #endif
-                #endif
-                generateCpuTaskChain(20);
-            } catch (const std::runtime_error& e) {
-                logger.error("Caught runtime error: %s", e.what());
-            } catch (const std::exception& e) {
-                logger.error("Caught exception: %s", e.what());
-            } catch (...) {
-                logger.error("Caught unknown exception");
-            }
-        });
-        core_to_run = (core_to_run + 1) % max_cores;
-    }
-
-    for (std::thread& thread : threads) {
-        thread.join();
-    }
+    // multipleSchedulerMultiCpuTasks();
+    // multipleSchedulerMultiIoTasks();
+    // multipleSchedulerMultiIoCpuTasks(); 
+    // multipleSchedulerMultiCpuCpuTasks();
+    // multipleSchedulerMultiIoIoTasks(); 
     auto end = std::chrono::steady_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    logger.info("Total task run time is %d milliseconds", duration);
+    logger.info("Total task run time is %d milliseconds", duration.count());
     return 0;
 }
