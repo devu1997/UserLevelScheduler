@@ -5,7 +5,7 @@ CalenderQueue::CalenderQueue() : queue(CALENDERQ_NQUEUE), size_(0), runq(0), ins
 
 void CalenderQueue::addTask(Task* task, int priority) {
     auto current_time = std::chrono::steady_clock::now();
-    int increments = std::chrono::milliseconds(INSQ_UPDATE_INTERVAL) / (current_time - last_insq_update_time);
+    int increments = (current_time - last_insq_update_time) / std::chrono::milliseconds(INSQ_UPDATE_INTERVAL);
     insq = (insq + increments) % CALENDERQ_NQUEUE;
     if (runq == insq) {
         insq = (runq + 1) % CALENDERQ_NQUEUE;
