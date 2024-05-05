@@ -156,7 +156,7 @@ void generateIoTaskChain(int length, int file_no) {
         #endif
         generatePrimes(100);
         #ifdef ENABLE_THREAD_MIGRATION_METRICS
-        int curr_core = sched_getcpu();
+        curr_core = sched_getcpu();
         if (core != curr_core) {
             logger.info("Migrated core %d", curr_core);
             core = curr_core;
@@ -283,7 +283,7 @@ int main() {
     // multipleSchedulerMultiCpuCpuTasksBenchmark();
     // multipleSchedulerMultiIoIoTasksBenchmark(); 
 
-    // start = threadMigrationBenchmark();
+    start = threadMigrationBenchmark();
     
     auto end = std::chrono::steady_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);

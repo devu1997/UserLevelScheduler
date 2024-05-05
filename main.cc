@@ -388,7 +388,7 @@ int main() {
 
     // coreCountBenchmark();
 
-    // threadMigrationBenchmark();
+    threadMigrationBenchmark();
 
     std::signal(SIGINT, sigint_handler);
     coordinator.start();

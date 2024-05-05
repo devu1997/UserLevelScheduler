@@ -242,7 +242,7 @@ void multipleSchedulerMultiIoIoTasksBenchmark() {
 
 std::chrono::steady_clock::time_point threadMigrationBenchmark() {
     std::vector<std::thread> threads;
-    for (int i=0; i<512; i++) {
+    for (int i=0; i<16; i++) {
         threads.emplace_back([] {
             logger.info("Started\n");
             generateIoTaskChain(20, 0);
@@ -264,7 +264,7 @@ int main() {
     // multipleSchedulerMultiCpuCpuTasksBenchmark();
     // multipleSchedulerMultiIoIoTasksBenchmark(); 
 
-    // start = threadMigrationBenchmark();
+    start = threadMigrationBenchmark();
     
     auto end = std::chrono::steady_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
