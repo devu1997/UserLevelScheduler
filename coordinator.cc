@@ -87,7 +87,7 @@ void Coordinator::balanceLoad() {
         Scheduler* scheduler = recepient_schedulers.top().first;
         int current_task_count = recepient_schedulers.top().second;
         recepient_schedulers.pop();
-        int max_acceptable_donations = average_tasks_ceil - current_task_count;
+        int max_acceptable_donations = std::min(MAX_TASKS_TO_STEAL, average_tasks_ceil - current_task_count);
         while (!doner_schedulers.empty() && max_acceptable_donations > 0) {
             Scheduler *doner_scheduler = doner_schedulers.top().first;
             int doner_current_task_count = doner_schedulers.top().second;
@@ -113,9 +113,7 @@ void Coordinator::balanceLoad() {
 void Coordinator::submit(Task* task) {
     schedulers[next_scheduler_id]->submit(task);
     #ifndef ENABLE_LOAD_BALANCE_METRICS
-    #ifndef ENABLE_PINNING
     next_scheduler_id = (next_scheduler_id + 1) % schedulers.size();
-    #endif
     #endif
 }
 
@@ -125,6 +123,7 @@ void Coordinator::start() {
         scheduler->setCoordinator(this);
         threads.emplace_back([&scheduler] {
             try {
+                logger.info("Started\n");
                 scheduler->start(); 
             } catch (const std::runtime_error& e) {
                 logger.error("Scheduler %d caught runtime error: %s", scheduler->id, e.what());

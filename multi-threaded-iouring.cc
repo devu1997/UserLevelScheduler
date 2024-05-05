@@ -9,13 +9,13 @@
 #include <sys/ioctl.h>
 #include <cstring>
 #include <cerrno>
-#include <mutex>
-#include <condition_variable>
+#include <liburing.h>
 #include <linux/fs.h>
 #include "logger.h"
 #include "logger.cc"
 
 
+#define QUEUE_DEPTH 1024
 #define BLOCK_SZ    1024
 
 struct FileTaskInput {
@@ -63,11 +63,7 @@ std::vector<int> generatePrimes(int limit) {
     return primes;
 }
 
-FileTaskInput* readFile(std::string read_file_path) {
-    int fd = open(read_file_path.c_str(), O_RDONLY | O_DIRECT | O_SYNC);
-    if (fd == -1) {
-        throw std::runtime_error("Error: Failed to open input file.");
-    }
+FileTaskInput* readFile(int fd) {
     off_t file_size = get_file_size(fd);
     off_t bytes_remaining = file_size;
     int current_block = 0;
@@ -85,20 +81,13 @@ FileTaskInput* readFile(std::string read_file_path) {
             throw std::runtime_error("Error: Posix memalign failed");
         }
         ft_input->iovecs[current_block].iov_base = buf;
-        pread(fd, ft_input->iovecs[current_block].iov_base, ft_input->iovecs[current_block].iov_len, BLOCK_SZ * current_block);
         current_block++;
         bytes_remaining -= bytes_to_read;
     }
+    ft_input->file_fd = fd;
     ft_input->file_size = file_size;
     ft_input->blocks = blocks;
-    close(fd);
     return ft_input;
-}
-
-void writeFile(std::string write_file_path, FileTaskInput* ft_input) {
-    for (int current_block=0; current_block<ft_input->blocks; current_block++) {
-        pwrite(ft_input->file_fd, ft_input->iovecs[current_block].iov_base, ft_input->iovecs[current_block].iov_len, BLOCK_SZ * current_block);
-    }
 }
 
 void generateCpuTaskChain(int length) {
@@ -112,10 +101,32 @@ void generateIoTaskChain(int length, int file_no) {
     #ifdef ENABLE_THREAD_MIGRATION_METRICS
     int core = sched_getcpu();
     #endif
+    struct io_uring ring;
+    int ret = io_uring_queue_init(QUEUE_DEPTH, &ring, 0);
+    if (ret < 0) {
+        throw std::runtime_error("Error: Unable to initialize IO uring");
+    }
     std::string read_file_path = "/home/users/devika/os/UserLevelScheduler/logs/log" + std::to_string(file_no) + ".txt";
     std::string write_file_path = "/home/users/devika/os/UserLevelScheduler/logs/out" + std::to_string(file_no) + ".txt";
-    FileTaskInput* ft_input = readFile(read_file_path);
-    int fd = open(write_file_path.c_str(), O_RDWR | O_CREAT | O_TRUNC | O_DIRECT | O_SYNC, 0644);
+    
+    int fd = open(read_file_path.c_str(), O_RDONLY | O_DIRECT | O_SYNC);
+    if (fd == -1) {
+        throw std::runtime_error("Error: Failed to open input file.");
+    }
+    FileTaskInput* ft_input = readFile(fd);
+    
+    struct io_uring_sqe* sqe = io_uring_get_sqe(&ring);
+    io_uring_prep_readv(sqe, ft_input->file_fd, ft_input->iovecs, ft_input->blocks, 0);
+    io_uring_sqe_set_data(sqe, ft_input);
+    ret = io_uring_submit_and_wait(&ring, 1);
+    if (ret < 0) {
+        throw std::runtime_error(std::string("Error: File read submission failed: ") + std::to_string(ret));
+    }
+    io_uring_cq_advance(&ring, 1);
+
+    close(fd);
+
+    fd = open(write_file_path.c_str(), O_RDWR | O_CREAT | O_TRUNC | O_DIRECT | O_SYNC, 0644);
     if (fd == -1) {
         throw std::runtime_error("Error: Failed to open input file.");
     }
@@ -128,7 +139,14 @@ void generateIoTaskChain(int length, int file_no) {
     }
     #endif
     for (int i=0; i<length; i++) {
-        writeFile(write_file_path, ft_input);
+        struct io_uring_sqe* sqe = io_uring_get_sqe(&ring);
+        io_uring_prep_writev(sqe, ft_input->file_fd, ft_input->iovecs, ft_input->blocks, 0);
+        io_uring_sqe_set_data(sqe, ft_input);
+        int ret = io_uring_submit_and_wait(&ring, 1);
+        if (ret < 0) {
+            throw std::runtime_error(std::string("Error: File read submission failed: ") + std::to_string(ret));
+        }
+        io_uring_cq_advance(&ring, 1);
         #ifdef ENABLE_THREAD_MIGRATION_METRICS
         int curr_core = sched_getcpu();
         if (core != curr_core) {
@@ -138,13 +156,14 @@ void generateIoTaskChain(int length, int file_no) {
         #endif
         generatePrimes(100);
         #ifdef ENABLE_THREAD_MIGRATION_METRICS
-        curr_core = sched_getcpu();
+        int curr_core = sched_getcpu();
         if (core != curr_core) {
             logger.info("Migrated core %d", curr_core);
             core = curr_core;
         }
         #endif
     }
+    io_uring_queue_exit(&ring);
 }
 
 void multipleSchedulerMultiCpuTasksBenchmark() {

@@ -21,6 +21,9 @@ struct StealRequest {
 
 class Scheduler {
 private:
+    #ifdef ENABLE_THREAD_MIGRATION_METRICS
+    int core = -1;
+    #endif
     Coordinator* coordinator;
     FileScheduler* file_scheduler;
     PriorityQueue interactive_task_queue;

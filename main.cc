@@ -361,8 +361,8 @@ void coreCountBenchmark() {
 
 void threadMigrationBenchmark() {
     // Use 32 schedulers
-    for (int i=0; i<32; i++) {
-        Task *task = generateCpuTaskChain(20 * 20);
+    for (int i=0; i<512; i++) {
+        Task *task = generateIoTaskChain(20, 0);
         coordinator.submit(task);
     }
 }
@@ -382,8 +382,6 @@ int main() {
 
     // interactivitySingleIoCpuTasksBenchmark(); // 5 seconds
 
-    // multipleSchedulerMultiCpuTasksBenchmark();
-    // multipleSchedulerMultiIoTasksBenchmark();
     // multipleSchedulerMultiIoCpuTasksBenchmark();
     // multipleSchedulerMultiCpuCpuTasksBenchmark();
     // multipleSchedulerMultiIoIoTasksBenchmark();

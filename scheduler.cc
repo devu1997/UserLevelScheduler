@@ -90,6 +90,13 @@ Task* Scheduler::getNextTask() {
 }
 
 void Scheduler::process_interactive_tasks() {
+    #ifdef ENABLE_THREAD_MIGRATION_METRICS
+    int curr_core = sched_getcpu();
+    if (core != -1 && core != curr_core) {
+        logger.info("Migrated core %d", curr_core);
+    }
+    core = curr_core;
+    #endif
     // Add completed IOs to runqueue
     file_scheduler->process_completed();
 
