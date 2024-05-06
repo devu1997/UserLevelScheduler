@@ -29,7 +29,7 @@ async function generateCpuTaskChain(length) {
     let new_length = length * 2
 
     for (let i = 0; i < new_length - 1; i++) {
-        let a = await generatePrimes(1000);
+        let a = await generatePrimes(10000);
     }
     return 'Done'
 }
